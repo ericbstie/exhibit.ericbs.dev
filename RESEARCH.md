@@ -164,7 +164,29 @@ I fingerprinted the test environment (`/proc/version`, boot cmdline, mounted sec
 
 ---
 
-## 5. Suggested next steps
+## 5. VPS compatibility: "does Hetzner block this?" (2026-07-11)
+
+Concern raised: VPSes (Hetzner specifically) disallow virtualization — does that break the sandbox plan?
+
+**No — the plan never used virtualization.** What Hetzner Cloud blocks is *nested* virtualization: you can't run KVM-based VMs (QEMU, Firecracker, kubevirt) inside a cloud instance ([confirmed limitation](https://github.com/RedHat-EMEA-SSA-Team/hetzner-ocp/issues/10), [community reports](https://www.webhostingtalk.com/showthread.php?t=1888802)). Everything in the recommended ladder is a **kernel feature of your own guest kernel**, not virtualization:
+
+| Mechanism | Needs virtualization? | Works on Hetzner Cloud? |
+|---|---|---|
+| Linux users + file permissions | No | Yes — the zeroth rung; `DynamicUser=` automates exactly this |
+| systemd hardening (`ProtectSystem`, `IPAddressDeny`, `MemoryMax`…) | No (cgroups/eBPF/namespaces) | Yes |
+| Landlock, seccomp | No (syscall-level LSM/filters) | Yes (stock Ubuntu/Debian kernels) |
+| bubblewrap / unshare (namespaces) | No — same primitive Docker uses, and Docker famously runs fine on Hetzner | Yes |
+| **nsjail** | No (namespaces + seccomp + cgroups + rlimits) | Yes |
+| gVisor | Not on its default **systrap/ptrace** platform (only the optional KVM platform needs nested virt) | Yes, with `--platform=systrap` |
+| Firecracker / QEMU microVMs | **Yes — this is the one thing that's off the table** | No (cloud); yes on Hetzner dedicated |
+
+The confusion is understandable: my *test environment* was a Firecracker microVM, and tools like Gondolin use microVMs. But exhibit's ladder (systemd → Landlock → bwrap) was chosen precisely because it's kernel-native. A KVM cloud VPS gives you a full private kernel — namespaces, LSMs, and cgroups are all yours. (It's OpenVZ/LXC-era *container* VPSes where namespaces get restricted; Hetzner Cloud is KVM.)
+
+**On nsjail specifically:** it would work (namespaces + seccomp-bpf + cgroups + rlimits, config-file driven, actively used for CTF/exec sandboxes, supports veth into the jail). It's a reasonable alternative to bwrap with more knobs (per-jail resource limits built in, protobuf configs). Trade-offs: usually built from source (thin distro packaging), Google-maintained but not "supported", and it overlaps heavily with what systemd already provides once exhibit generates units. Recommendation unchanged: **systemd units as the spine** (users/cgroups/network lockdown declaratively, zero extra binaries), bwrap *or* nsjail as the non-systemd fallback — pick one; both are namespace-based and Hetzner-safe.
+
+**One real Ubuntu caveat in this area:** Ubuntu 23.10+ restricts *unprivileged* user-namespace creation via AppArmor (`apparmor_restrict_unprivileged_userns=1`). This hits unprivileged bwrap/nsjail invocations with `Permission denied` — the kind of failure easily misread as "VPS blocks sandboxing." Exhibit's daemon runs as root, so it's mostly moot (root creates the sandbox, then drops privileges), but if apps are launched as plain users, ship an AppArmor profile or flip the sysctl during `ex` setup.
+
+## 6. Suggested next steps
 
 1. Verify the systemd ladder on a real VPS (Ubuntu 24.04: kernel 6.8 = Landlock v4): one generated unit with `IPAddressDeny=any` + proxy env vars, confirm a Node/Python app works unmodified.
 2. Prototype `ex-egress` in Go on goproxy: host allowlist, smokescreen-style private-IP rejection, JSONL audit log, per-app auth (distinct socket per app — you get identity for free).
