@@ -36,7 +36,15 @@ One `ex` daemon orchestrates three things: Caddy for ingress, an egress proxy fo
 
 ### Secrets
 
-Apps never hold secrets. The app sees a placeholder; the egress proxy swaps it for the real credential only on requests to the host you bound it to. A compromised app can leak nothing, and every call it makes is on record.
+Apps never hold secrets. The app sees a placeholder; the egress proxy swaps it for the real credential only on requests to the host you bound it to.
+
+```
+in the app's env:   API_KEY=exhibit:placeholder
+app calls:          GET api.company.com
+ex-egress sends:    GET api.company.com   Authorization: Bearer <real key>
+```
+
+A compromised app can leak nothing, and every call it makes is on record.
 
 ![Egress secret injection](docs/diagrams/egress-secrets.svg)
 
@@ -44,7 +52,7 @@ This can be used to, for example:
 - Allow only GET requests to `*.super-sensitive-environment.company.com`
 - Attach `Bearer ...` token on all requests to `api.company.com`. This separates credentials from potentially weak/unsecured/untrusted webapps.
 
-More diagrams (with editable `.excalidraw` sources) in [docs/diagrams](docs/diagrams). Build plan in [PLAN.md](PLAN.md).
+Build plan in [PLAN.md](PLAN.md).
 
 ## DNS adaptors
 
