@@ -1,6 +1,6 @@
 # Exhibit — research report
 
-*2026-07-10. Combines web research (all claims verified against project docs/READMEs, links inline) with hands-on experiments run in a Linux sandbox (kernel 6.18, root, no Landlock, user namespaces available). Experiment transcripts are summarized in [§4](#4-what-i-actually-tested-and-what-happened).*
+*2026-07-10, updated 2026-07-11. Combines web research (all claims verified against project docs/READMEs, links inline) with hands-on experiments run in a Linux sandbox (Firecracker microVM, custom kernel 6.18, root, user namespaces available). Experiment transcripts are summarized in [§4](#4-what-i-actually-tested-and-what-happened); [§4.5](#45-sandbox-artifact-audit-which-of-my-negative-findings-are-real) audits which negative findings were artifacts of the test sandbox itself.*
 
 ## TL;DR
 
@@ -8,7 +8,7 @@
 2. **Lakebed is not it** — it's a *managed hosted runtime* for AI-built TypeScript "capsules" on lakebed.app subdomains, not a self-host-on-your-VPS tool. But its security philosophy (restricted runtime, gated outbound fetch, platform-held secrets) is strikingly close to exhibit's, which validates the idea.
 3. **The defensible core is the egress/secrets proxy, not the deploy UX.** One-command deploys, auto TLS, and dashboards are commodity (Coolify, Dokploy, Kamal, Sidekick…). No self-hosted PaaS audits outbound traffic or brokers secrets outside the app. That is the wedge.
 4. **The architecture works.** I built and verified the full chain in a sandbox: Caddy (dynamic admin-API routes) → Unix socket → bubblewrap sandbox with **zero network** → egress only via an allowlisting, secret-injecting proxy socket. The app never sees the secret, denied hosts get 403, and every outbound request lands in an audit log.
-5. **Do not bet on any single sandbox mechanism.** Landlock (what mise uses for FS) was *missing* on my 6.18 kernel; mise's FS sandbox hard-errored while its seccomp net sandbox worked. Exhibit needs a detect-and-degrade ladder: systemd hardening → +Landlock → bwrap fallback.
+5. **Do not bet on any single sandbox mechanism.** Landlock (what mise uses for FS) was *missing* on my 6.18 test kernel — though §4.5 shows that was the test sandbox's custom kernel, and stock distro kernels do ship it. Kernel config, not version, decides; exhibit still needs a detect-and-degrade ladder: systemd hardening → +Landlock → bwrap fallback.
 
 ---
 
@@ -66,7 +66,7 @@ The AI-generated-code wave is the tailwind narrative: hobbyists increasingly dep
 - **Embedding Caddy as a Go library.** Couples exhibit's lifecycle to the proxy (an `ex` crash drops all traffic), inherits Caddy's dependency tree and global state. Run a pinned xcaddy-built binary and drive the admin API — verified trivial (§4.1).
 - **`caddy add-package` at runtime** — depends on Caddy's build service, and there's an [open proposal to remove it](https://github.com/caddyserver/caddy/issues/7010). Pin a custom build in CI instead.
 - **caddyserver/forwardproxy for the egress role.** It can't MITM (CONNECT-tunnels opaquely → can't inject or audit HTTPS bodies), targets censorship circumvention, and is seeking maintainers. Use [elazarl/goproxy](https://github.com/elazarl/goproxy) (or copy smokescreen) for a purpose-built egress component instead.
-- **Assuming Landlock exists.** My test kernel was 6.18 — newer than Landlock's 5.13 requirement — and Landlock was still `NotImplemented` (kernel config / LSM list decides, not version). mise's FS sandbox hard-errors there. Debian 12 (6.1) lacks Landlock net rules (needs 6.7+). Detect at runtime; degrade gracefully.
+- **Assuming Landlock exists.** Kernel config / LSM boot list decides, not kernel version — my 6.18 test kernel had `CONFIG_SECURITY_LANDLOCK` unset and mise's FS sandbox hard-errored. **Caveat (see §4.5): that was a custom-built sandbox kernel; stock [Ubuntu 22.04+, Debian 12+, Fedora 35+ enable Landlock by default](https://docs.suricata.io/en/latest/configuration/landlock.html)** ([Ubuntu's enabling patch](https://patchwork.ozlabs.org/project/ubuntu-kernel/patch/20211203185226.1957311-2-mic@digikod.net/)), so on mainstream VPS images it will normally be there. The advice stands in softened form: detect at runtime (`landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)`), degrade gracefully, and remember Landlock *network* rules still need kernel ≥ 6.7 (Debian 12's 6.1 has FS-only).
 - **mise's sandbox as *the* sandbox.** Verified on Linux: `--allow-net=<host>` **is not enforced** (help text: "macOS only in v1; on Linux falls back to allowing all network") and `--deny-net` is all-or-nothing seccomp. It composes nicely as an *inner* layer (§4.4) but can't express "network only via my proxy" — exhibit's whole point.
 - **firejail** — setuid-root attack surface, multiple CVEs incl. local root (CVE-2022-31214). Wrong tool for multi-tenant servers.
 - **Relying on `HTTP_PROXY` env vars alone.** Cooperative only; any raw socket bypasses it. Fine as the *steering* mechanism, but pair it with a hard block (netns or systemd `IPAddressDeny`) so bypass = connection refused, not escape. This is exactly what zerobox and sandbox-runtime do.
@@ -96,7 +96,7 @@ The AI-generated-code wave is the tailwind narrative: hobbyists increasingly dep
 
 ## 4. What I actually tested (and what happened)
 
-Environment: Linux 6.18.5, root, user namespaces available, **Landlock absent** (syscall returns ENOSYS with no seccomp filter — genuine kernel-config absence), cgroup v2 mounted at a nonstandard path, systemd not PID 1 (so systemd-run tests weren't meaningful here; that part rests on the documented behavior above).
+Environment (fingerprinted after the fact, see §4.5): a **Firecracker microVM running a real, custom-built Linux 6.18.5 kernel** (`builder@sandboxing`, `--firecracker-init` on the boot cmdline) — *not* gVisor or another syscall emulator, so kernel-behavior results are genuine. Root, user namespaces available, **Landlock absent** (`# CONFIG_SECURITY_LANDLOCK is not set` — a choice of this sandbox's kernel, not of stock distros), LSM list `capability,selinux`, cgroups in a hybrid nonstandard layout, custom init instead of systemd PID 1, IPv6 disabled, and **all egress forced through a credential-injecting MITM proxy** (more on that delightful irony in §4.5).
 
 ### 4.1 Caddy dynamic orchestration — ✅ works, trivially
 
@@ -138,6 +138,23 @@ With `mise settings experimental=true` (v2026.7.5):
 - `--deny-net` → **worked** (seccomp blocks inet socket creation; DNS fails, loopback TCP fails).
 - `--allow-net=<host>` → documented as **not enforced on Linux** (falls back to allow-all).
 - **Best finding:** under `mise x --deny-net`, inet is blocked but **Unix sockets still work** — a curl through exhibit's proxy socket succeeded, secret injected, while direct TCP was refused. So a user's `mise run production` with mise's sandbox *composes* with exhibit's proxy: mise provides defense-in-depth inside, exhibit provides the only network path outside. (Note: the socat TCP bridge can't run under mise's seccomp — clients must speak to the Unix socket directly in that combo.)
+
+### 4.5 Sandbox-artifact audit: which of my negative findings are real?
+
+I fingerprinted the test environment (`/proc/version`, boot cmdline, mounted securityfs, kernel config, proxy env) to separate "true of Linux" from "true of this sandbox":
+
+**Artifacts of the sandbox — do NOT generalize these:**
+
+| Finding above | Why it's an artifact | Expected on a real VPS |
+|---|---|---|
+| Landlock `ENOSYS` / mise FS sandbox hard-errors | Custom Firecracker guest kernel with `# CONFIG_SECURITY_LANDLOCK is not set` (LSM list: `capability,selinux` only) | Stock Ubuntu 22.04+ / Debian 12+ / Fedora 35+ [enable Landlock by default](https://docs.suricata.io/en/latest/configuration/landlock.html); mise's FS sandbox and ladder-step 1 should work. Verify with `mise x --deny-write -- true` during `ex` setup |
+| Couldn't test systemd sandboxing | Custom `rdinit=/process_api` init, no systemd PID 1 — a microVM design choice | Every mainstream VPS image boots systemd; `IPAddressDeny`/`DynamicUser`/`MemoryMax` untested here but unblocked there |
+| Couldn't test cgroup resource limits | Hybrid/nonstandard cgroup mount in this guest | Standard cgroup v2 on modern distros |
+| Couldn't test ACME / On-Demand TLS / any real outbound behavior | No public IP/domain; IPv6 disabled; **all egress is forced through the environment's own MITM proxy** with a private CA | Fully testable on a VPS with a domain |
+
+**Findings that DO transfer** (the guest kernel is a real Linux 6.18, not gVisor — syscalls are genuine): everything that *worked*. Caddy admin-API orchestration (pure userspace), bwrap namespaces/ro-binds/`--unshare-all`, Unix sockets crossing netns boundaries, the AF_UNIX ~108-char path limit, mise's seccomp `--deny-net` blocking inet while passing Unix sockets, and mise's documented (not environment-dependent) Linux `--allow-net` fallback.
+
+**The irony that doubles as validation:** the sandbox I ran these tests in — Anthropic's remote-execution environment — *is* exhibit's proposed architecture, deployed in production. It's a Firecracker microVM whose env contains literal placeholder credentials (`GH_TOKEN=proxy-injected`, `CLOUDSDK_AUTH_ACCESS_TOKEN=proxy-injected`) with a mandatory local egress proxy at `127.0.0.1:38821` that substitutes real tokens on the way out, steered by `HTTPS_PROXY`/`NO_PROXY`/per-toolchain env vars and a distributed MITM CA bundle (`SSL_CERT_FILE`, Java truststore, npm/yarn/docker configs). Real workloads (git, npm, gcloud, Java) run happily inside it — proof the env-var-steered, proxy-side-credential model works with unmodified tooling at production scale. Worth studying its DX details: per-toolchain proxy env vars and a pre-baked CA bundle are exactly the polish exhibit's sandbox needs.
 
 ### What I could not test here
 
