@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 620" font-family="ui-sans-serif,system-ui,sans-serif">
+<defs>
+<marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#343a40"/></marker>
+<marker id="ah-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+</defs>
+<rect width="1320" height="620" fill="#ffffff"/>
+<rect x="40" y="100" width="190" height="70" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="135.0" y="140.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Visitor</text>
+<rect x="40" y="420" width="190" height="70" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="135.0" y="460.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Developer</text>
+<rect x="290" y="40" width="720" height="540" rx="10" fill="none" stroke="#495057" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="304" y="66" font-size="17" font-weight="700" fill="#495057">VPS</text>
+<rect x="330" y="90" width="220" height="100" rx="10" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<text x="440.0" y="145.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Caddy</text>
+<rect x="650" y="90" width="300" height="110" rx="10" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2"/>
+<text x="800.0" y="150.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">app sandbox · blog</text>
+<rect x="330" y="400" width="220" height="110" rx="10" fill="#e5dbff" stroke="#6741d9" stroke-width="2"/>
+<text x="440.0" y="460.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">ex daemon</text>
+<rect x="650" y="390" width="300" height="100" rx="10" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="800.0" y="445.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">ex-egress</text>
+<rect x="1090" y="90" width="190" height="80" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="1185.0" y="135.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">DNS provider</text>
+<rect x="1090" y="400" width="190" height="80" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="1185.0" y="445.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">api.company.com</text>
+<polyline points="230,135.0 330,140.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="280.0" y="129.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">visits blog.ericbs.dev</text>
+<text x="280.0" y="129.5" font-size="12" fill="#343a40" text-anchor="middle">visits blog.ericbs.dev</text>
+<polyline points="550,140.0 650,145.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="600.0" y="134.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">routes by domain</text>
+<text x="600.0" y="134.5" font-size="12" fill="#343a40" text-anchor="middle">routes by domain</text>
+<polyline points="230,455.0 330,455.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="280.0" y="447.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">ex deploy</text>
+<text x="280.0" y="447.0" font-size="12" fill="#343a40" text-anchor="middle">ex deploy</text>
+<polyline points="440.0,400 440.0,190" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="440.0" y="287.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">adds route + TLS cert</text>
+<text x="440.0" y="287.0" font-size="12" fill="#343a40" text-anchor="middle">adds route + TLS cert</text>
+<polyline points="550,425 650,200" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="600.0" y="304.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">runs the app, sandboxed</text>
+<text x="600.0" y="304.5" font-size="12" fill="#343a40" text-anchor="middle">runs the app, sandboxed</text>
+<polyline points="800.0,200 800.0,390" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="800.0" y="287.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">calls api.company.com</text>
+<text x="800.0" y="287.0" font-size="12" fill="#343a40" text-anchor="middle">calls api.company.com</text>
+<polyline points="950,440.0 1090,440.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="1020.0" y="432.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">attaches secret, forwards</text>
+<text x="1020.0" y="432.0" font-size="12" fill="#343a40" text-anchor="middle">attaches secret, forwards</text>
+<polyline points="440,510 440,550 1050,550 1050,130 1090,130" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="745.0" y="542.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">points domain at the VPS</text>
+<text x="745.0" y="542.0" font-size="12" fill="#343a40" text-anchor="middle">points domain at the VPS</text>
+</svg>
