@@ -44,8 +44,6 @@ app calls:          GET api.company.com
 ex-egress sends:    GET api.company.com   Authorization: Bearer <real key>
 ```
 
-A compromised app can leak nothing, and every call it makes is on record.
-
 ![Egress secret injection](docs/diagrams/egress-secrets.svg)
 
 This can be used to, for example:

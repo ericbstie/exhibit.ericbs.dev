@@ -72,5 +72,4 @@
 <polyline points="475,590 475,665 1190,665 1190,155 1220,155" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
 <text x="832.5" y="657.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">libdns: records + ACME DNS-01</text>
 <text x="832.5" y="657.0" font-size="12" fill="#343a40" text-anchor="middle">libdns: records + ACME DNS-01</text>
-<text x="340" y="730" font-size="14" font-weight="700" fill="#495057">no Docker anywhere: apps are systemd units (bwrap fallback) · secrets never enter an app · every outbound request is audited</text>
 </svg>
