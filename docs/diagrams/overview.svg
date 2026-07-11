@@ -35,10 +35,10 @@
 <text x="475.0" y="530.0" font-size="12.5" fill="#343a40" text-anchor="middle">creates users + units</text>
 <text x="475.0" y="547.0" font-size="12.5" fill="#343a40" text-anchor="middle">owns egress rules + secrets</text>
 <rect x="720" y="430" width="300" height="150" rx="10" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
-<text x="870.0" y="484.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">egress proxy</text>
-<text x="870.0" y="504.5" font-size="12.5" fill="#343a40" text-anchor="middle">deny-by-default allowlist</text>
-<text x="870.0" y="521.5" font-size="12.5" fill="#343a40" text-anchor="middle">injects secrets per host</text>
-<text x="870.0" y="538.5" font-size="12.5" fill="#343a40" text-anchor="middle">SSRF guard · audit log</text>
+<text x="870.0" y="484.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">ex-egress</text>
+<text x="870.0" y="504.5" font-size="12.5" fill="#343a40" text-anchor="middle">exhibit&#x27;s egress proxy</text>
+<text x="870.0" y="521.5" font-size="12.5" fill="#343a40" text-anchor="middle">custom Go service on</text>
+<text x="870.0" y="538.5" font-size="12.5" fill="#343a40" text-anchor="middle">elazarl/goproxy</text>
 <rect x="1220" y="460" width="200" height="90" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
 <text x="1320.0" y="510.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">api.company.com</text>
 <rect x="1220" y="110" width="200" height="90" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
