@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 380" font-family="ui-sans-serif,system-ui,sans-serif">
+<defs>
+<marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#343a40"/></marker>
+<marker id="ah-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+</defs>
+<rect width="1400" height="380" fill="#ffffff"/>
+<rect x="50" y="120" width="220" height="100" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="160.0" y="158.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Visitor</text>
+<text x="160.0" y="178.0" font-size="12.5" fill="#343a40" text-anchor="middle">GET https://</text>
+<text x="160.0" y="195.0" font-size="12.5" fill="#343a40" text-anchor="middle">blog.ericbs.dev</text>
+<rect x="380" y="100" width="330" height="150" rx="10" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<text x="545.0" y="154.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Caddy</text>
+<text x="545.0" y="174.5" font-size="12.5" fill="#343a40" text-anchor="middle">terminates TLS</text>
+<text x="545.0" y="191.5" font-size="12.5" fill="#343a40" text-anchor="middle">on-demand cert (ask → ex daemon)</text>
+<text x="545.0" y="208.5" font-size="12.5" fill="#343a40" text-anchor="middle">matches Host header</text>
+<rect x="810" y="130" width="180" height="80" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="900.0" y="166.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">unix socket</text>
+<text x="900.0" y="186.5" font-size="12.5" fill="#343a40" text-anchor="middle">app.sock</text>
+<rect x="1090" y="100" width="260" height="150" rx="10" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2"/>
+<text x="1220.0" y="154.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">app sandbox</text>
+<text x="1220.0" y="174.5" font-size="12.5" fill="#343a40" text-anchor="middle">no open ports,</text>
+<text x="1220.0" y="191.5" font-size="12.5" fill="#343a40" text-anchor="middle">no network at all —</text>
+<text x="1220.0" y="208.5" font-size="12.5" fill="#343a40" text-anchor="middle">reachable only via socket</text>
+<polyline points="270,170.0 380,175.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="325.0" y="164.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">:443</text>
+<text x="325.0" y="164.5" font-size="12" fill="#343a40" text-anchor="middle">:443</text>
+<polyline points="710,175.0 810,170.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="760.0" y="164.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">reverse_proxy</text>
+<text x="760.0" y="164.5" font-size="12" fill="#343a40" text-anchor="middle">reverse_proxy</text>
+<polyline points="990,170.0 1090,175.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="50" y="320" font-size="15" font-weight="700" fill="#343a40">one exposed surface (Caddy) — apps are invisible to the network</text>
+</svg>

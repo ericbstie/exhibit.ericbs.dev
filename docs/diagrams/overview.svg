@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1460 740" font-family="ui-sans-serif,system-ui,sans-serif">
+<defs>
+<marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#343a40"/></marker>
+<marker id="ah-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+</defs>
+<rect width="1460" height="740" fill="#ffffff"/>
+<rect x="40" y="130" width="190" height="80" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="135.0" y="166.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Visitor</text>
+<text x="135.0" y="186.5" font-size="12.5" fill="#343a40" text-anchor="middle">https://blog.ericbs.dev</text>
+<rect x="40" y="470" width="190" height="90" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="135.0" y="503.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Developer</text>
+<text x="135.0" y="523.0" font-size="12.5" fill="#343a40" text-anchor="middle">ex deploy --domain ...</text>
+<text x="135.0" y="540.0" font-size="12.5" fill="#343a40" text-anchor="middle">-- mise run production</text>
+<rect x="300" y="40" width="860" height="660" rx="10" fill="none" stroke="#495057" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="314" y="66" font-size="17" font-weight="700" fill="#495057">VPS</text>
+<rect x="340" y="100" width="260" height="130" rx="10" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<text x="470.0" y="144.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">Caddy</text>
+<text x="470.0" y="164.5" font-size="12.5" fill="#343a40" text-anchor="middle">auto-TLS  :80 / :443</text>
+<text x="470.0" y="181.5" font-size="12.5" fill="#343a40" text-anchor="middle">host → app routing</text>
+<text x="470.0" y="198.5" font-size="12.5" fill="#343a40" text-anchor="middle">admin API 127.0.0.1:2019</text>
+<rect x="720" y="80" width="270" height="120" rx="10" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2"/>
+<text x="855.0" y="119.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">app sandbox · blog</text>
+<text x="855.0" y="139.5" font-size="12.5" fill="#343a40" text-anchor="middle">own user + systemd unit</text>
+<text x="855.0" y="156.5" font-size="12.5" fill="#343a40" text-anchor="middle">read-only FS · MemoryMax</text>
+<text x="855.0" y="173.5" font-size="12.5" fill="#343a40" text-anchor="middle">no inet network</text>
+<rect x="720" y="240" width="270" height="120" rx="10" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2"/>
+<text x="855.0" y="279.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">app sandbox · api-demo</text>
+<text x="855.0" y="299.5" font-size="12.5" fill="#343a40" text-anchor="middle">own user + systemd unit</text>
+<text x="855.0" y="316.5" font-size="12.5" fill="#343a40" text-anchor="middle">read-only FS · MemoryMax</text>
+<text x="855.0" y="333.5" font-size="12.5" fill="#343a40" text-anchor="middle">no inet network</text>
+<rect x="340" y="420" width="270" height="170" rx="10" fill="#e5dbff" stroke="#6741d9" stroke-width="2"/>
+<text x="475.0" y="476.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">ex daemon</text>
+<text x="475.0" y="496.0" font-size="12.5" fill="#343a40" text-anchor="middle">dashboard: logs · health · audit</text>
+<text x="475.0" y="513.0" font-size="12.5" fill="#343a40" text-anchor="middle">renders Caddy config</text>
+<text x="475.0" y="530.0" font-size="12.5" fill="#343a40" text-anchor="middle">creates users + units</text>
+<text x="475.0" y="547.0" font-size="12.5" fill="#343a40" text-anchor="middle">owns egress rules + secrets</text>
+<rect x="720" y="430" width="300" height="150" rx="10" fill="#ffe8cc" stroke="#e8590c" stroke-width="2"/>
+<text x="870.0" y="484.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">egress proxy</text>
+<text x="870.0" y="504.5" font-size="12.5" fill="#343a40" text-anchor="middle">deny-by-default allowlist</text>
+<text x="870.0" y="521.5" font-size="12.5" fill="#343a40" text-anchor="middle">injects secrets per host</text>
+<text x="870.0" y="538.5" font-size="12.5" fill="#343a40" text-anchor="middle">SSRF guard · audit log</text>
+<rect x="1220" y="460" width="200" height="90" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="1320.0" y="510.0" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">api.company.com</text>
+<rect x="1220" y="110" width="200" height="90" rx="10" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<text x="1320.0" y="151.5" font-size="15" font-weight="700" fill="#1e1e1e" text-anchor="middle">DNS provider</text>
+<text x="1320.0" y="171.5" font-size="12.5" fill="#343a40" text-anchor="middle">Cloudflare, Route53, …</text>
+<polyline points="230,170.0 340,165.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="285.0" y="159.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">HTTPS</text>
+<text x="285.0" y="159.5" font-size="12" fill="#343a40" text-anchor="middle">HTTPS</text>
+<polyline points="230,515.0 340,505.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="285.0" y="502.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">CLI / API</text>
+<text x="285.0" y="502.0" font-size="12" fill="#343a40" text-anchor="middle">CLI / API</text>
+<polyline points="600,140.0 720,140.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="660.0" y="132.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">unix socket</text>
+<text x="660.0" y="132.0" font-size="12" fill="#343a40" text-anchor="middle">unix socket</text>
+<polyline points="600,190.0 720,300.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="660.0" y="237.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">unix socket</text>
+<text x="660.0" y="237.0" font-size="12" fill="#343a40" text-anchor="middle">unix socket</text>
+<polyline points="990,160 1060,160 1060,480 1020,480" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="1060.0" y="310.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">proxy.sock</text>
+<text x="1060.0" y="310.0" font-size="12" fill="#343a40" text-anchor="middle">proxy.sock</text>
+<polyline points="815.0,360 810.0,430" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<polyline points="475.0,420 470.0,230" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="472.5" y="317.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">admin API</text>
+<text x="472.5" y="317.0" font-size="12" fill="#343a40" text-anchor="middle">admin API</text>
+<polyline points="610,505.0 720,505.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="665.0" y="497.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">rules + secrets</text>
+<text x="665.0" y="497.0" font-size="12" fill="#343a40" text-anchor="middle">rules + secrets</text>
+<polyline points="1020,545.0 1220,530.0" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="1120.0" y="553.5" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">+ Authorization: Bearer …</text>
+<text x="1120.0" y="553.5" font-size="12" fill="#343a40" text-anchor="middle">+ Authorization: Bearer …</text>
+<polyline points="475,590 475,665 1190,665 1190,155 1220,155" fill="none" stroke="#343a40" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#ah-ink)"/>
+<text x="832.5" y="657.0" font-size="12" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" text-anchor="middle">libdns: records + ACME DNS-01</text>
+<text x="832.5" y="657.0" font-size="12" fill="#343a40" text-anchor="middle">libdns: records + ACME DNS-01</text>
+<text x="340" y="730" font-size="14" font-weight="700" fill="#495057">no Docker anywhere: apps are systemd units (bwrap fallback) · secrets never enter an app · every outbound request is audited</text>
+</svg>
