@@ -79,14 +79,27 @@ managed dirs — is a constraint the symlink-swap release model imposes anyway
   [#8](https://github.com/ericbstie/exhibit.ericbs.dev/issues/8)). `HTTP_PROXY`
   is a non-secret and is injected via the unit's `Environment=`.
 
-- **Secrets cross the privilege boundary from the root side.** Because the app
-  runs as an unprivileged `DynamicUser` with no access to the age key, app-env
-  secrets are decrypted on the **privileged side** (`exhibitd`) and delivered to
-  the process through a systemd-mediated channel; M2M credentials **never enter
-  the app** (they terminate at the proxy). The exact channel and the per-class
-  decrypt location are deferred to
-  [#13](https://github.com/ericbstie/exhibit.ericbs.dev/issues/13), which now
-  fits inside this composition.
+- **Secrets ride in-boundary; the app/proxy split is enforced by fnox
+  recipients, not by re-channelling.** The deploy payload — the app's
+  `fnox.toml`, an optional committed `.env`, code, and a new **`.exhibit`**
+  config file — enters the app's boundary **unmodified**; Exhibit dissects
+  nothing. The app decrypts and reads its **own** secrets (including in-boundary
+  crypto material — DB/field-encryption keys, signing keys) itself. The
+  **proxy's M2M credentials** live in a dedicated **fnox profile** (default
+  `production`, selected by `.exhibit`) whose secrets are encrypted to the
+  **proxy's own age recipient**: the operator runs **`ex age-key show`**, adds
+  that public key to the profile's `recipients`, re-encrypts, and pushes. Those
+  ciphertexts sit in the same `fnox.toml` inside the boundary but are
+  **decryptable only by the proxy** — a *cryptographic* enforcement of #8's "the
+  app never holds M2M creds," replacing the leaky `env=false` convention.
+  `.exhibit` is visible in the boundary but inert to the app: only the proxy
+  reads it, to learn how to proxy. Remaining mechanics — per-app app-key
+  provisioning, the proxy's age keypair behind `ex age-key show`, the `.exhibit`
+  schema (and reconciling it with #6's `.exhibit/commit` sidecar), and the exact
+  profile/`--no-defaults` shape — are deferred to
+  [#13](https://github.com/ericbstie/exhibit.ericbs.dev/issues/13), which
+  **revises #5** (grouping *is* possible via profiles + recipients) **and #8**
+  (the M2M guarantee is now cryptographic).
 
 - **Deployed-app contract.** An app must keep all writable state under its
   systemd-managed `StateDirectory`/`LogsDirectory`, never in its release dir.
