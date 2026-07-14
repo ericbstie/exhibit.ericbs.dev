@@ -1,0 +1,51 @@
+# PROTOTYPE — exhibit issue #10. The unit template ADR 0002 composes:
+# instance = domain, ExecStart = fnox exec -- mise run production,
+# write-confinement by systemd itself (ProtectSystem=strict + DynamicUser),
+# joined to the persistent per-app netns via NetworkNamespacePath.
+#
+# run.sh installs this into /run/systemd/system/ (gone on reboot) and
+# removes it on exit.
+
+[Unit]
+Description=Exhibit app %i (PROTOTYPE)
+# Production wires After=/Requires= on an exhibit-netns@%i.service that owns
+# the netns lifecycle. Here run.sh pre-creates /run/netns/exhibit-%i; if it is
+# missing, NetworkNamespacePath below makes the START FAIL — never an
+# unconfined run. That fail-closed behavior is criterion 4.
+
+[Service]
+WorkingDirectory=/srv/exhibit/apps/%i/current
+ExecStart=/usr/local/bin/fnox exec --no-daemon -P production -- /usr/local/bin/mise run production
+
+# --- identity: ephemeral non-root UID, no useradd (criterion 3) ---
+DynamicUser=yes
+
+# --- write confinement: the load-bearing floor (criteria 1+2) ---
+# Everything read-only except the dirs systemd itself provisions.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+StateDirectory=exhibit/%i
+LogsDirectory=exhibit/%i
+UMask=0077
+
+# --- netns composition (criterion 5) ---
+NetworkNamespacePath=/run/netns/exhibit-%i
+
+# --- secrets: the app's own age key, delivered as a systemd credential;
+#     fnox decrypts fnox.toml in-boundary (ADR 0002 secrets model) ---
+LoadCredential=age.key:/etc/exhibit/age/%i.key
+Environment=FNOX_AGE_KEY_FILE=%d/age.key
+
+# --- tool runtime dirs: mise/fnox/bun need scratch; PrivateTmp makes /tmp
+#     per-instance and discarded, so caches never leak across apps ---
+ExecStartPre=/bin/mkdir -p /tmp/home /tmp/mise
+Environment=HOME=/tmp/home
+Environment=MISE_DATA_DIR=/tmp/mise/data MISE_CACHE_DIR=/tmp/mise/cache MISE_STATE_DIR=/tmp/mise/state
+Environment=MISE_TRUSTED_CONFIG_PATHS=/srv/exhibit MISE_YES=1
+
+# Which sibling instances the probe app should attempt to violate (check 2).
+Environment="EXHIBIT_DOMAINS=alpha.test beta.test"
+
+Restart=no

@@ -1,0 +1,11 @@
+# PROTOTYPE — the assumed project entrypoint contract (map Notes):
+# `prepare` runs against the new release dir BEFORE the symlink swap (as the
+# deploy step, outside the unit's confinement); `production` is the
+# long-running server, launched by systemd via `fnox exec -- mise run
+# production`. mise is task-runner only — no tool management, no sandboxing.
+
+[tasks.prepare]
+run = "date -u +%FT%TZ > .exhibit-prepared && echo \"prepare: wrote .exhibit-prepared into the release dir\""
+
+[tasks.production]
+run = "bun server.ts"
