@@ -1,6 +1,6 @@
 # 1. Transparent credential proxy — plaintext-to-proxy via forward-proxy env
 
-- **Status:** Accepted
+- **Status:** Accepted — **transport (Decision §1) superseded by [ADR 0008](0008-transparent-interception-transport.md)** (2026-07-17, validation [#18](https://github.com/ericbstie/exhibit.ericbs.dev/issues/18)); §3's `env = false` mechanism revised by [#13](https://github.com/ericbstie/exhibit.ericbs.dev/issues/13) → [ADR 0004](0004-secrets-model.md). Model (a)'s semantics — `http://`-only attachment, TLS origination, never-overwrite, metadata-only logs, fail-closed floor — all stand.
 - **Date:** 2026-07-14
 - **Deciders:** single operator (Exhibit)
 - **Ticket:** [Decide: transparent credential-proxy model](https://github.com/ericbstie/exhibit.ericbs.dev/issues/8) (map: [#2](https://github.com/ericbstie/exhibit.ericbs.dev/issues/2))

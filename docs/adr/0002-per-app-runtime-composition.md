@@ -18,7 +18,7 @@ WorkingDirectory=/srv/apps/%i/current          # read-only release dir
 ProtectSystem=strict
 StateDirectory=exhibit/%i                        # /var/lib/private/exhibit/<domain>
 LogsDirectory=exhibit/%i
-Environment=HTTP_PROXY=http://<host-veth-ip>:<proxy-port>   # non-secret (#8)
+# Environment=HTTP_PROXY=...  ← superseded by ADR 0008: transparent interception, no proxy env vars
 ExecStart=fnox exec -- mise run production
 Restart=on-failure
 ```
@@ -28,7 +28,14 @@ exhibit-app@<domain>`. No per-app unit file, no `useradd`.
 
 ## Status
 
-accepted
+accepted — amended 2026-07-17 after pre-implementation validation
+([#18](https://github.com/ericbstie/exhibit.ericbs.dev/issues/18)); see
+**Amendments** below. The secrets consequence ("enforced by fnox recipients")
+was superseded by [#13](https://github.com/ericbstie/exhibit.ericbs.dev/issues/13)'s
+final model → [ADR 0004](0004-secrets-model.md) (one exhibitd-held key,
+decrypt-outside, injection-control). The `Environment=HTTP_PROXY` line in the
+unit snippet is superseded by [ADR 0008](0008-transparent-interception-transport.md)
+(no proxy env vars; transparent interception).
 
 ## Considered Options
 
@@ -103,3 +110,31 @@ managed dirs — is a constraint the symlink-swap release model imposes anyway
 
 - **Deployed-app contract.** An app must keep all writable state under its
   systemd-managed `StateDirectory`/`LogsDirectory`, never in its release dir.
+
+## Amendments (2026-07-17 — pre-implementation validation #18)
+
+Command-verified findings that the unit template and exhibitd must honor:
+
+- **DNS delivery.** `/etc/netns/<ns>/resolv.conf` is an `ip netns exec` convention;
+  `NetworkNamespacePath=` does **not** apply it (systemd
+  [#28694](https://github.com/systemd/systemd/issues/28694) — reproduced). The template
+  adds `BindReadOnlyPaths=/etc/netns/ns-%i/resolv.conf:/etc/resolv.conf:norbind`
+  (valid because `NetworkNamespacePath=` implies `PrivateMounts=` since v254; bind a
+  regular file, not a resolved symlink — systemd
+  [#32366](https://github.com/systemd/systemd/issues/32366)).
+- **Reboot reconcile.** `/run/netns`, veths, and nftables rules are tmpfs-resident and
+  vanish at reboot — "provisioned once" requires `exhibitd` to re-create every app's
+  network at boot (oneshot unit, `RemainAfterExit=yes`), with `exhibit-app@` instances
+  ordered `After=`/`BindsTo=` it. Fail-closed means un-reconciled apps refuse to start
+  rather than run unsandboxed — intended.
+- **`prepare` runs inside the same confinement** as `production` (transient unit in the
+  app's netns, write access only to the not-yet-current release dir). Registry fetches
+  work through ADR 0008's transparent `:443` passthrough; no sandbox exception.
+- **journald rate limit.** journald drops >10k lines/30s per unit by default; the
+  template sets `LogRateLimitBurst=` explicitly so app logs aren't silently dropped.
+- **Capability hardening.** The ADR 0008 interception rules live inside the app's netns:
+  the unit drops `CAP_NET_ADMIN` (`CapabilityBoundingSet=`) and sets
+  `RestrictNamespaces=yes` so the app cannot rewrite its own egress policy.
+- **Ownership floor.** `DynamicUser=` + `StateDirectory=` uses idmapped mounts on
+  systemd ≥257 (Debian 13); older systemd falls back to recursive chown — correct,
+  slower on large state.
