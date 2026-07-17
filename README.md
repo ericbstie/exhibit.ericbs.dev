@@ -3,7 +3,7 @@
 Publish webapps instantly with ease. Intended for use on a single VPS.
 
 1. Enter a webapp project (html/react/vue/svelte)
-2. `ex deploy --domain project.ericbs.dev --allow-net api.company.com -- mise run production`
+2. `ex deploy --domain project.ericbs.dev -- mise run production`
 3. `curl https://project.ericbs.dev` - 200 OK
 
 Exhibit comes with a dashboard to:
@@ -20,4 +20,4 @@ It's:
 - extremely easy to setup and self host
 - container-free: apps run as sandboxed processes, so it works on any VPS
 - built to proxy secrets & audit outgoing authorised requests
-- focused on security & observability out-of-the-box (see architecture)
+- focused on security & observability out-of-the-box (see `docs/adr/`)
