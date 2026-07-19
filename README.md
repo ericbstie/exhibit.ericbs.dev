@@ -19,7 +19,7 @@ Exhibit has two sides: `exhibit-server` running on the VPS, and the `ex` CLI
 you run on your laptop to deploy to it. There's no packaged installer yet —
 `ex init-server`, a one-command provisioner, is still on the roadmap (see
 [ADR 0007](docs/adr/0007-delivery-bootstrap.md)) — so today both run from
-source with [Bun](https://bun.sh) (>= 1.2).
+source with [Bun](https://bun.sh).
 
 **On the VPS:** have systemd, [mise](https://mise.jdx.dev) (apps run `mise
 run production`), and [Caddy](https://caddyserver.com) with its admin API
