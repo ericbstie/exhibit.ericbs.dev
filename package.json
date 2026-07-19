@@ -1,0 +1,19 @@
+{
+  "name": "exhibit",
+  "version": "0.1.0",
+  "description": "Publish webapps instantly with ease. Intended for use on a single VPS.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "ex": "src/ex/main.ts",
+    "exhibit-server": "src/server/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.5.0"
+  }
+}

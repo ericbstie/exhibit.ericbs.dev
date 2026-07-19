@@ -1,0 +1,77 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { listApps } from "./releases.ts";
+
+/**
+ * The address seam (spec #20): the router target is *read* from per-app state,
+ * never derived inline. R1 records a localhost port in
+ * `apps/<domain>/.exhibit/net.toml`; a later sandbox release records a veth IP
+ * there instead, with no change to deploy or ingress.
+ */
+export interface Target {
+  host: string;
+  port: number;
+}
+
+function netTomlPath(appsDir: string, domain: string): string {
+  return join(appsDir, domain, ".exhibit", "net.toml");
+}
+
+export function readRecordedPort(appsDir: string, domain: string): number | null {
+  const path = netTomlPath(appsDir, domain);
+  if (!existsSync(path)) return null;
+  const match = readFileSync(path, "utf8").match(/^\s*port\s*=\s*(\d+)\s*$/m);
+  return match ? Number(match[1]) : null;
+}
+
+/** True when nothing is listening on 127.0.0.1:port. */
+async function bindProbe(port: number): Promise<boolean> {
+  try {
+    const listener = Bun.listen({ hostname: "127.0.0.1", port, socket: { data() {} } });
+    listener.stop(true);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Lowest free port ≥ base: a single-writer scan of every app's
+ * `.exhibit/net.toml` — no lock, no registry (ADR 0005). `probe` additionally
+ * skips ports some unrelated process already occupies.
+ */
+export async function allocatePort(
+  appsDir: string,
+  base: number,
+  probe: (port: number) => Promise<boolean> = bindProbe,
+): Promise<number> {
+  const used = new Set<number>();
+  for (const domain of listApps(appsDir)) {
+    const port = readRecordedPort(appsDir, domain);
+    if (port !== null) used.add(port);
+  }
+  for (let candidate = base; candidate < 65536; candidate++) {
+    if (!used.has(candidate) && (await probe(candidate))) return candidate;
+  }
+  throw new Error(`no free port at or above ${base}`);
+}
+
+/** The app's recorded port, allocating and persisting one on first deploy. */
+export async function ensurePort(appsDir: string, domain: string, base: number): Promise<number> {
+  const recorded = readRecordedPort(appsDir, domain);
+  if (recorded !== null) return recorded;
+  const port = await allocatePort(appsDir, base);
+  mkdirSync(join(appsDir, domain, ".exhibit"), { recursive: true });
+  writeFileSync(netTomlPath(appsDir, domain), `port = ${port}\n`);
+  return port;
+}
+
+/** `resolveTarget(domain) → host:port`, backed by `.exhibit/net.toml`. */
+export function resolveTarget(appsDir: string, domain: string): Target | null {
+  const port = readRecordedPort(appsDir, domain);
+  return port === null ? null : { host: "127.0.0.1", port };
+}
+
+export function targetString(target: Target): string {
+  return `${target.host}:${target.port}`;
+}

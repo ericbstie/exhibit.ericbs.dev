@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # The e2e harness (spec #20 / T1): a real Linux environment with systemd
+    # as PID 1, Caddy with its admin API, mise, and a loopback sshd wired to
+    # exhibit-server as the SSH forced command.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Install Caddy (admin API on localhost:2019)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+          curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+          curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+          sudo apt-get update
+          sudo apt-get install -y caddy
+          curl -fsS --retry 5 --retry-delay 1 --retry-all-errors http://127.0.0.1:2019/config/ > /dev/null
+
+      - name: Install mise
+        run: |
+          curl -fsSL https://mise.run | sudo MISE_INSTALL_PATH=/usr/local/bin/mise sh
+          mise --version
+
+      - name: Expose bun to root
+        run: sudo ln -sf "$(which bun)" /usr/local/bin/bun
+
+      - name: Configure loopback sshd with exhibit-server as forced command
+        run: |
+          sudo apt-get install -y openssh-server
+          sudo mkdir -p /root/.ssh && sudo chmod 700 /root/.ssh
+          sudo ssh-keygen -t ed25519 -N '' -f /root/.ssh/exhibit_e2e
+          sudo tee /usr/local/bin/exhibit-server >/dev/null <<EOF
+          #!/bin/sh
+          export EXHIBIT_ROOT=/srv/exhibit-e2e
+          export EXHIBIT_PORT_BASE=4500
+          exec /usr/local/bin/bun $GITHUB_WORKSPACE/src/server/main.ts "\$@"
+          EOF
+          sudo chmod +x /usr/local/bin/exhibit-server
+          echo "command=\"/usr/local/bin/exhibit-server\",restrict $(sudo cat /root/.ssh/exhibit_e2e.pub)" | sudo tee -a /root/.ssh/authorized_keys >/dev/null
+          sudo chmod 600 /root/.ssh/authorized_keys
+          sudo tee /root/.ssh/config >/dev/null <<EOF
+          Host exhibit-e2e
+            HostName 127.0.0.1
+            User root
+            IdentityFile /root/.ssh/exhibit_e2e
+            StrictHostKeyChecking accept-new
+          EOF
+          echo "PermitRootLogin prohibit-password" | sudo tee /etc/ssh/sshd_config.d/99-exhibit.conf >/dev/null
+          sudo systemctl restart ssh
+
+      - name: Tests (unit + e2e)
+        run: sudo -E env "PATH=$PATH" EXHIBIT_E2E=1 EXHIBIT_SSH_E2E=1 bun test --timeout 120000
