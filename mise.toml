@@ -11,8 +11,11 @@
 
 [tasks.lint]
 description = "Markdown lint (structural rules only)"
-tools = { node = "22", "npm:markdownlint-cli2" = "latest" }
-run = "markdownlint-cli2"
+# markdownlint-cli2 is fetched and run with aube (a Node package manager),
+# not npm. `aube dlx` is aube's npx-equivalent — it runs a package in a
+# throwaway environment. node is needed to execute the (JS) linter.
+tools = { node = "22", aube = "latest" }
+run = "aube dlx markdownlint-cli2@0.23.1"
 
 [tasks.links]
 description = "Internal links, anchors, and path references"

@@ -13,14 +13,15 @@ job so a red X points straight at what broke.
 Every tool is installed and run through [mise](https://mise.jdx.dev): the
 tools and check commands live in [`mise.toml`](../mise.toml) as tasks, so CI
 and local runs use the exact same definitions. Tools are declared per-task,
-so the pure-Python checks pull in nothing and only the external-link check
-installs `lychee`.
+so the pure-Python checks pull in nothing. The Markdown linter is fetched and
+run with [aube](https://aube.jdx.dev) (a Node package manager) via `aube dlx`
+rather than npm, and only the external-link check installs `lychee`.
 
 ## The checks
 
 | Job | What it enforces | Task |
 |-----|------------------|------|
-| **Markdown lint** | Structural Markdown rules — list spacing, fenced-code languages, heading nesting, stray whitespace. Prose-style rules (line length, emphasis-as-heading) are off on purpose. | `mise run lint` — `markdownlint-cli2` via `.markdownlint-cli2.jsonc` |
+| **Markdown lint** | Structural Markdown rules — list spacing, fenced-code languages, heading nesting, stray whitespace. Prose-style rules (line length, emphasis-as-heading) are off on purpose. | `mise run lint` — `markdownlint-cli2` (fetched via `aube dlx`) with `.markdownlint-cli2.jsonc` |
 | **Internal links & references** | Relative `[text](path)` links resolve, `#anchor`s point at real headings, and inline-code paths under `docs/`, `.github/`, `.claude/` exist. | `mise run links` — [`check_links.py`](../.github/scripts/check_links.py) |
 | **ADR consistency** | ADR files are named `NNNN-slug.md`, numbered uniquely and contiguously from 0001, each has a heading, and [`docs/adr/README.md`](adr/README.md) lists every one exactly once. | `mise run adr` — [`check_adrs.py`](../.github/scripts/check_adrs.py) |
 | **Spelling** | Common typos in prose. Domain jargon is safe; codespell only flags known misspellings. | `mise run spell` — `codespell` via `.codespellrc` |
