@@ -50,22 +50,30 @@ async function mustApi(admin: string, method: string, path: string, body?: unkno
   }
 }
 
-/** Ensure the exhibit HTTP server exists in Caddy's config. */
+/**
+ * Ensure the exhibit HTTP server exists in Caddy's config, creating only the
+ * missing level — never replacing config Exhibit doesn't own. A full `/load`
+ * happens only when Caddy has no config at all.
+ */
 export async function ensureExhibitServer(admin: string, listen: string): Promise<void> {
   const cfgRes = await api(admin, "GET", "/config/");
   const cfg = cfgRes.ok ? await cfgRes.json() : null;
-  const servers = cfg?.apps?.http?.servers;
-  if (servers?.exhibit) return;
+  if (cfg?.apps?.http?.servers?.exhibit) return;
   const exhibit = { listen: [listen], routes: [] };
-  if (!servers) {
-    const adminListen = new URL(admin).host;
+  if (!cfg) {
     await mustApi(admin, "POST", "/load", {
-      admin: { listen: adminListen },
+      admin: { listen: new URL(admin).host },
       apps: { http: { servers: { exhibit } } },
     });
-    return;
+  } else if (!cfg.apps) {
+    await mustApi(admin, "PUT", "/config/apps", { http: { servers: { exhibit } } });
+  } else if (!cfg.apps.http) {
+    await mustApi(admin, "PUT", "/config/apps/http", { servers: { exhibit } });
+  } else if (!cfg.apps.http.servers) {
+    await mustApi(admin, "PUT", "/config/apps/http/servers", { exhibit });
+  } else {
+    await mustApi(admin, "PUT", "/config/apps/http/servers/exhibit", exhibit);
   }
-  await mustApi(admin, "PUT", "/config/apps/http/servers/exhibit", exhibit);
 }
 
 /** Install or replace the route for a domain — no downtime on replace. */

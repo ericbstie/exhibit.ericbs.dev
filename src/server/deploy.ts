@@ -37,17 +37,21 @@ async function hasPrepareTask(releaseDir: string): Promise<boolean | "no-mise"> 
   }
 }
 
-/** Poll until the app answers HTTP on its port, or the unit dies, or timeout. */
+/**
+ * Poll until the app answers HTTP (non-5xx — a broken build that serves
+ * errors must not replace a working release) on its port, or the unit dies,
+ * or the timeout runs out.
+ */
 async function verifyAnswersHttp(domain: string, port: number, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      await httpGet("127.0.0.1", port, domain, 1000);
-      return true;
+      const res = await httpGet("127.0.0.1", port, domain, 1000);
+      if (res.status < 500) return true;
     } catch {
       if ((await unitState(domain)) === "failed") return false;
-      await sleep(250);
     }
+    await sleep(250);
   }
   return false;
 }
@@ -172,7 +176,8 @@ export async function deployOp(
   // live: confirm the domain answers through the ingress.
   start("live");
   try {
-    await httpGet("127.0.0.1", env.ingressPort, domain, 5000);
+    const res = await httpGet("127.0.0.1", env.ingressPort, domain, 5000);
+    if (res.status >= 500) return fail("live", `ingress answered ${res.status} for ${domain}`);
   } catch (err) {
     return fail("live", `ingress check failed: ${err instanceof Error ? err.message : err}`);
   }

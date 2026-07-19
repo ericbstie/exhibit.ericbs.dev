@@ -38,6 +38,13 @@ function quoteExecArg(arg: string): string {
   return `"${arg.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
+/**
+ * Deliberate deviation from ADR 0002's snippet (`WorkingDirectory=…/current`):
+ * the drop-in points at the concrete release dir so a new release can be
+ * started and VERIFYed *before* `current` swaps (spec #20 step 7), and the
+ * previous drop-in doubles as the rollback handle. `current` remains the
+ * derived source of truth for `ls`/rollback (ADR 0005).
+ */
 export function renderDropIn(opts: {
   releaseDir: string;
   port: number;
@@ -53,12 +60,11 @@ ExecStart=${exec}
 `;
 }
 
-/** Install the shared template if missing or stale; returns whether it changed. */
-export function installTemplate(unitDir: string): boolean {
+/** Install the shared template if missing or stale. */
+export function installTemplate(unitDir: string): void {
   const path = join(unitDir, "exhibit-app@.service");
-  if (existsSync(path) && readFileSync(path, "utf8") === TEMPLATE) return false;
+  if (existsSync(path) && readFileSync(path, "utf8") === TEMPLATE) return;
   writeFileSync(path, TEMPLATE);
-  return true;
 }
 
 export function readDropIn(unitDir: string, domain: string): string | null {
