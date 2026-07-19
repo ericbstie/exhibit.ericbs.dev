@@ -14,8 +14,8 @@ import {
   journalTail,
   listInstances,
   renderDropIn,
-  startApp,
-  stopApp,
+  retireInstance,
+  startInstance,
   unitState,
   writeDropIn,
 } from "./systemd.ts";
@@ -154,8 +154,8 @@ export async function deployOp(
   );
 
   const abandon = async (step: StepName, message: string): Promise<number> => {
-    process.stderr.write(await journalTail(domain, 60));
-    await stopApp(env.unitDir, instance);
+    process.stderr.write(await journalTail(instance, 60));
+    await retireInstance(env.unitDir, instance);
     discardRelease();
     message += previousRelease
       ? ` — previous release ${previousRelease} still serving`
@@ -164,7 +164,7 @@ export async function deployOp(
   };
 
   try {
-    await startApp(instance);
+    await startInstance(instance);
   } catch (err) {
     return abandon("unit", `failed to start unit: ${err instanceof Error ? err.message : err}`);
   }
@@ -183,7 +183,10 @@ export async function deployOp(
   recordPort(env.appsDir, domain, port);
   ok("cutover", release);
 
-  // route: Host → target through the Caddy admin API (zero-downtime).
+  // route: Host → target through the Caddy admin API (zero-downtime). A
+  // failure past this point deliberately skips decommission: the stale route
+  // still points at the previous instance, so stopping it would take the
+  // site down — the next successful deploy's sweep retires it instead.
   start("route");
   try {
     await upsertRoute(env.caddyAdmin, env.ingressListen, domain, target);
@@ -209,7 +212,7 @@ export async function deployOp(
     start("decommission");
     await sleep(DRAIN_MS);
     for (const retiree of retirees) {
-      await stopApp(env.unitDir, retiree);
+      await retireInstance(env.unitDir, retiree);
     }
     ok("decommission", previousRelease ?? undefined);
   }

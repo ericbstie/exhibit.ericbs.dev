@@ -75,8 +75,19 @@ async function cmdLogs(args: string[]): Promise<number> {
     console.error("logs requires <domain>");
     return 2;
   }
-  // Every release is its own unit instance (#28); the glob tails them all.
-  const jargs = ["-u", unitPattern(domain), "--no-pager", "-o", "cat"];
+  // Every release is its own unit instance (#28); the glob tails them all,
+  // matching against unit names found in the journal, so decommissioned
+  // releases' history is included. The bare-instance unit covers logs from
+  // the pre-#28 single-instance layout.
+  const jargs = [
+    "-u",
+    unitPattern(domain),
+    "-u",
+    `exhibit-app@${domain}.service`,
+    "--no-pager",
+    "-o",
+    "cat",
+  ];
   const n = args.indexOf("-n");
   jargs.push("-n", n !== -1 && args[n + 1] ? args[n + 1]! : "100");
   if (args.includes("--follow") || args.includes("-f")) jargs.push("-f");

@@ -39,6 +39,11 @@ async function bindProbe(port: number): Promise<boolean> {
  * Lowest free port ≥ base: a single-writer scan of every app's
  * `.exhibit/net.toml` — no lock, no registry (ADR 0005). `probe` additionally
  * skips ports some unrelated process already occupies.
+ *
+ * Concurrent deploys can race this scan: an in-flight release's port is
+ * unrecorded until cutover and unbound until its app boots. Accepted for R1
+ * (single operator, deploys unserialized — ADR 0005 amendment); the exhibitd
+ * split (ADR 0002) is where serialization lands.
  */
 export async function allocatePort(
   appsDir: string,

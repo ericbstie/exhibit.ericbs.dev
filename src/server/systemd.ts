@@ -106,13 +106,14 @@ export async function unitState(instance: string): Promise<string> {
 }
 
 /** Reload units and start a release's instance, enabled for reboot. */
-export async function startApp(instance: string): Promise<void> {
+export async function startInstance(instance: string): Promise<void> {
   await systemctl("daemon-reload");
   await systemctl("enable", unitName(instance));
   await systemctl("restart", unitName(instance));
 }
 
-export async function stopApp(unitDir: string, instance: string): Promise<void> {
+/** Take a release's instance out of service entirely: stop, un-enable, drop config. */
+export async function retireInstance(unitDir: string, instance: string): Promise<void> {
   await run(["systemctl", "disable", "--now", unitName(instance)]);
   await run(["systemctl", "reset-failed", unitName(instance)]);
   removeDropIn(unitDir, instance);
@@ -146,11 +147,12 @@ export async function listInstances(domain: string): Promise<string[]> {
   return [...instances];
 }
 
-export async function journalTail(domain: string, lines: number): Promise<string> {
+/** Tail one instance's log — precise, so a failure tail can't interleave the live release's. */
+export async function journalTail(instance: string, lines: number): Promise<string> {
   const { stdout } = await run([
     "journalctl",
     "-u",
-    unitPattern(domain),
+    unitName(instance),
     "-n",
     String(lines),
     "--no-pager",

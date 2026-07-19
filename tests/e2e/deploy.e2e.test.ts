@@ -76,8 +76,9 @@ describe.skipIf(!E2E)("full deploy operation", () => {
 
     const ls = await runServer(["ls"], { env });
     expect(ls.stdout).toContain(`* ${firstRelease}`);
-    const unit = `exhibit-app@${domainA}.service`;
-    expect(Bun.spawnSync(["systemctl", "is-active", unit]).stdout.toString().trim()).toBe(
+    const units = appUnits(domainA);
+    expect(units.length).toBe(1);
+    expect(Bun.spawnSync(["systemctl", "is-active", units[0]!]).stdout.toString().trim()).toBe(
       "active",
     );
   });
@@ -184,6 +185,41 @@ describe.skipIf(!E2E)("full deploy operation", () => {
     expect(result.code).toBe(0);
     expect((await httpGet("127.0.0.1", INGRESS_PORT, domainA)).raw).toContain("v2-shipped");
     expect((await httpGet("127.0.0.1", INGRESS_PORT, domainB)).raw).toContain("b-body");
+  });
+
+  test("a healthy but slow-booting redeploy serves no failed request during cutover", async () => {
+    // #28 acceptance (2): the app takes seconds to bind its port; under the
+    // old cutover that window was dead air past Caddy's retry buffer. Now the
+    // previous release must serve every request until the slow boot passes
+    // VERIFY and traffic swaps.
+    const slowApp = {
+      "server.py": `import time\ntime.sleep(2.5)\n${PYTHON_SERVER}`,
+      "body.txt": "slow-but-healthy",
+    };
+    const results: number[] = [];
+    let stop = false;
+    const hammer = (async () => {
+      while (!stop) {
+        try {
+          results.push((await httpGet("127.0.0.1", INGRESS_PORT, domainA, 6000)).status);
+        } catch {
+          results.push(-1);
+        }
+        await sleep(50);
+      }
+    })();
+
+    const redeploy = await runServer(["deploy", "--domain", domainA, ...RUN_PYTHON], {
+      env,
+      stdin: appArchive(slowApp),
+    });
+    stop = true;
+    await hammer;
+    expect(redeploy.code).toBe(0);
+
+    expect(results.length).toBeGreaterThan(20);
+    expect(results.every((status) => status === 200)).toBe(true);
+    expect((await httpGet("127.0.0.1", INGRESS_PORT, domainA)).raw).toContain("slow-but-healthy");
   });
 
   test("writable state in STATE_DIR survives a redeploy", async () => {
