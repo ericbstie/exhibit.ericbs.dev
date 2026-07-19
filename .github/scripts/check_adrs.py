@@ -42,15 +42,21 @@ def first_h1(text: str) -> str | None:
     return m.group(1) if m else None
 
 
-def check() -> list[str]:
+def adr_files_in(adr_dir: Path) -> list[Path]:
+    if not adr_dir.is_dir():
+        return []
+    return sorted(p for p in adr_dir.glob("*.md") if p.name.lower() != "readme.md")
+
+
+def check(repo_root: Path = REPO_ROOT) -> list[str]:
     errors: list[str] = []
+    adr_dir = repo_root / "docs" / "adr"
+    index = adr_dir / "README.md"
 
-    if not ADR_DIR.is_dir():
-        return [f"ADR directory not found: {ADR_DIR.relative_to(REPO_ROOT)}"]
+    if not adr_dir.is_dir():
+        return [f"ADR directory not found: {adr_dir.relative_to(repo_root)}"]
 
-    adr_files = sorted(
-        p for p in ADR_DIR.glob("*.md") if p.name.lower() != "readme.md"
-    )
+    adr_files = adr_files_in(adr_dir)
     if not adr_files:
         return ["no ADR files found under docs/adr/"]
 
@@ -60,7 +66,7 @@ def check() -> list[str]:
         m = FILENAME_RE.match(name)
         if not m:
             errors.append(
-                f"{path.relative_to(REPO_ROOT)}: filename must match "
+                f"{path.relative_to(repo_root)}: filename must match "
                 f"NNNN-kebab-slug.md"
             )
             continue
@@ -74,7 +80,7 @@ def check() -> list[str]:
 
         if not first_h1(path.read_text(encoding="utf-8")):
             errors.append(
-                f"{path.relative_to(REPO_ROOT)}: missing a top-level '# ' heading"
+                f"{path.relative_to(repo_root)}: missing a top-level '# ' heading"
             )
 
     # Contiguous numbering from 0001.
@@ -88,17 +94,17 @@ def check() -> list[str]:
             )
 
     # Index-table sync.
-    if not INDEX.is_file():
+    if not index.is_file():
         errors.append("docs/adr/README.md (ADR index) is missing")
     else:
-        index_text = INDEX.read_text(encoding="utf-8")
+        index_text = index.read_text(encoding="utf-8")
         linked = INDEX_LINK_RE.findall(index_text)
         linked_names = set(linked)
 
         for name in linked:
             if linked.count(name) > 1:
                 errors.append(f"ADR index links {name} more than once")
-            if not (ADR_DIR / name).is_file():
+            if not (adr_dir / name).is_file():
                 errors.append(f"ADR index links a missing file: {name}")
 
         file_names = {p.name for p in adr_files}
@@ -110,9 +116,7 @@ def check() -> list[str]:
 
 def main() -> int:
     errors = check()
-    n = len(
-        sorted(p for p in ADR_DIR.glob("*.md") if p.name.lower() != "readme.md")
-    ) if ADR_DIR.is_dir() else 0
+    n = len(adr_files_in(ADR_DIR))
     print(f"checked {n} ADR file(s) against docs/adr/README.md")
     if errors:
         print(f"\nFAIL: {len(errors)} ADR problem(s):", file=sys.stderr)

@@ -4,7 +4,8 @@ This repo is a design record — Architecture Decision Records and agent-skill
 docs, no application code yet. The CI in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 guards against the regressions that actually happen to documentation: broken
 cross-references, an ADR index that drifts out of sync, malformed Markdown,
-and typos.
+and typos. The two Python checks that do this work are themselves covered by
+a `pytest` suite, so the regression detectors can't silently regress.
 
 Every check runs on pushes to `main`, on pull requests, weekly (to catch
 external link rot), and on demand (`workflow_dispatch`). Each is a separate
@@ -26,6 +27,7 @@ rather than npm, and only the external-link check installs `lychee`.
 | **ADR consistency** | ADR files are named `NNNN-slug.md`, numbered uniquely and contiguously from 0001, each has a heading, and [`docs/adr/README.md`](adr/README.md) lists every one exactly once. | `mise run adr` — [`check_adrs.py`](../.github/scripts/check_adrs.py) |
 | **Spelling** | Common typos in prose. Domain jargon is safe; codespell only flags known misspellings. | `mise run spell` — `codespell` via `.codespellrc` |
 | **External links** | `http(s)` links (GitHub issues, ADRs, referenced tools) still resolve. | `mise run external-links` — `lychee` via `lychee.toml` |
+| **Script tests** | The link and ADR checkers behave correctly — pass on valid input, flag every failure mode, and don't regress on tricky cases (e.g. links inside code spans). | `mise run test` — `pytest` over [`.github/scripts`](../.github/scripts) |
 
 Scope is this project's own docs (`README.md`, `CLAUDE.md`, `docs/`,
 `.github/`). The vendored engineering skills under `.claude/skills/` are
@@ -38,11 +40,12 @@ inside them.
 Install [mise](https://mise.jdx.dev), then:
 
 ```sh
-mise run check            # every offline check (lint + links + adr + spell)
+mise run check            # every offline check (lint + links + adr + spell + test)
 mise run lint             # markdownlint-cli2
 mise run links            # internal link & reference check
 mise run adr              # ADR numbering + index sync
 mise run spell            # codespell
+mise run test             # pytest suite for the check scripts
 mise run external-links   # lychee (needs network)
 ```
 

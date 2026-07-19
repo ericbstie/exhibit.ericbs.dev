@@ -30,6 +30,11 @@ description = "Spell check (codespell)"
 tools = { "pipx:codespell" = "latest" }
 run = "codespell README.md CLAUDE.md docs .github"
 
+[tasks.test]
+description = "Unit tests for the check scripts (pytest)"
+tools = { "pipx:pytest" = "latest" }
+run = "pytest .github/scripts"
+
 [tasks.external-links]
 description = "External link health (lychee)"
 tools = { "aqua:lycheeverse/lychee" = "latest" }
@@ -37,4 +42,4 @@ run = "lychee --config lychee.toml --no-progress --exclude-path .claude --exclud
 
 [tasks.check]
 description = "Run every offline regression check"
-depends = ["lint", "links", "adr", "spell"]
+depends = ["lint", "links", "adr", "spell", "test"]

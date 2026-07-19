@@ -87,16 +87,16 @@ def heading_slugs(text: str) -> set[str]:
     return slugs
 
 
-def iter_sources() -> list[Path]:
+def iter_sources(repo_root: Path = REPO_ROOT) -> list[Path]:
     seen: dict[Path, None] = {}
     for pattern in SOURCE_GLOBS:
-        for path in sorted(REPO_ROOT.glob(pattern)):
+        for path in sorted(repo_root.glob(pattern)):
             if path.is_file() and ".claude/skills" not in path.as_posix():
                 seen[path] = None
     return list(seen)
 
 
-def check() -> list[str]:
+def check(repo_root: Path = REPO_ROOT) -> list[str]:
     errors: list[str] = []
     slug_cache: dict[Path, set[str]] = {}
 
@@ -108,7 +108,7 @@ def check() -> list[str]:
                 slug_cache[path] = set()
         return slug_cache[path]
 
-    sources = iter_sources()
+    sources = iter_sources(repo_root)
     link_count = ref_count = 0
 
     for src in sources:
@@ -117,7 +117,7 @@ def check() -> list[str]:
         # For link detection, also neutralize inline-code spans: a
         # `[text](path)` written inside backticks is literal, not a link.
         link_body = INLINE_CODE_RE.sub(lambda m: " " * len(m.group(0)), body)
-        rel = src.relative_to(REPO_ROOT)
+        rel = src.relative_to(repo_root)
 
         # --- Markdown links -------------------------------------------------
         for target in LINK_RE.findall(link_body):
@@ -155,7 +155,7 @@ def check() -> list[str]:
             if any(c in cleaned for c in "*<>"):
                 continue
             ref_count += 1
-            dest = (REPO_ROOT / cleaned).resolve()
+            dest = (repo_root / cleaned).resolve()
             if not dest.exists():
                 errors.append(f"{rel}: referenced path does not exist -> `{token}`")
             elif is_dir and not dest.is_dir():
