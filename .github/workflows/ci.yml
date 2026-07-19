@@ -1,0 +1,81 @@
+name: CI
+
+# Regression checks for the documentation. This repo is currently a design
+# record (ADRs + agent docs), so "regressions" are broken links, a stale ADR
+# index, malformed Markdown, and typos. Every tool is installed and run
+# through mise (see mise.toml); each check is its own job so failures point
+# straight at the thing that broke.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, to catch external link rot even without a push.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Install mise-managed tools non-interactively when a task first needs them.
+  MISE_YES: "1"
+
+jobs:
+  markdown-lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run lint
+
+  internal-links:
+    name: Internal links & references
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run links
+
+  adr:
+    name: ADR consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run adr
+
+  spelling:
+    name: Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run spell
+
+  tests:
+    name: Script tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run test
+
+  external-links:
+    name: External links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Check external links
+        run: mise run external-links
+        env:
+          # lychee uses the token to check github.com links via the API
+          # instead of scraping (avoids rate limits).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

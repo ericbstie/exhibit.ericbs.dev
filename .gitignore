@@ -1,0 +1,9 @@
+# Python bytecode from the CI check scripts.
+__pycache__/
+*.py[cod]
+
+# Node (markdownlint via npx).
+node_modules/
+
+# lychee link-check cache.
+.lycheecache

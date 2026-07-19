@@ -1,0 +1,26 @@
+# lychee configuration — external link health.
+# https://github.com/lycheeverse/lychee
+#
+# Verifies that http(s) links in the docs still resolve, so link rot to
+# GitHub issues, ADRs, and referenced tools is caught as a regression.
+# Internal relative links are validated separately and more strictly by
+# .github/scripts/check_links.py.
+
+# Retry transient failures before giving up.
+max_retries = 3
+retry_wait_time = 2
+
+# Network timeouts (seconds).
+timeout = 20
+max_concurrency = 8
+
+# A realistic UA — some hosts 403 the default.
+user_agent = "Mozilla/5.0 (compatible; lychee link checker)"
+
+# Treat success and rate-limiting as OK. A 429 means the link exists but the
+# host is throttling CI; failing on it would just make the check flaky. The
+# GitHub token supplied in CI keeps github.com links off this path entirely.
+accept = ["200..=299", "429"]
+
+# Don't try to open mail links.
+include_mail = false
