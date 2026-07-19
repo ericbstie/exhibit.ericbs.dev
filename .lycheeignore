@@ -1,0 +1,3 @@
+# URLs (regex, one per line) to skip during external link checking.
+# Add hosts here only if they are known to block automated checkers or are
+# not meant to be reachable (e.g. example.com placeholders). Empty for now.

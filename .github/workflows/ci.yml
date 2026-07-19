@@ -1,0 +1,84 @@
+name: CI
+
+# Regression checks for the documentation. This repo is currently a design
+# record (ADRs + agent docs), so "regressions" are broken links, a stale ADR
+# index, malformed Markdown, and typos. Each check is its own job so failures
+# point straight at the thing that broke.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, to catch external link rot even without a push.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdown-lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run markdownlint-cli2
+        run: npx --yes markdownlint-cli2
+
+  internal-links:
+    name: Internal links & references
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check relative links, anchors, and path references
+        run: python3 .github/scripts/check_links.py
+
+  adr:
+    name: ADR consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check ADR numbering, headings, and index sync
+        run: python3 .github/scripts/check_adrs.py
+
+  spelling:
+    name: Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install codespell
+        run: python3 -m pip install --user codespell
+      - name: Run codespell
+        run: codespell README.md CLAUDE.md docs .github
+
+  external-links:
+    name: External links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check external links with lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --config lychee.toml
+            --no-progress
+            --exclude-path .claude
+            --exclude-path node_modules
+            './**/*.md'
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

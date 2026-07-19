@@ -1,0 +1,13 @@
+# codespell configuration — catches common typos in prose.
+# https://github.com/codespell-project/codespell
+#
+# Run locally with:  codespell README.md CLAUDE.md docs .github
+#
+# codespell only flags known misspellings (not every unfamiliar word), so
+# domain jargon like "netns", "fnox", "veth", or "exhibitd" is safe. If it
+# ever misfires on a real word, add the lowercase word to ignore-words-list
+# below (comma-separated), e.g. `ignore-words-list = crate,ede`.
+[codespell]
+skip = .git,node_modules,.claude,*.lock,*.svg,*.png
+check-hidden = true
+# ignore-words-list =
