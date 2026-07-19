@@ -1,0 +1,44 @@
+// markdownlint-cli2 configuration.
+//
+// Scope: this project's own documentation only. The vendored engineering
+// skills under `.claude/skills/` are third-party content (see
+// `.claude/skills/LICENSE-mattpocock-skills`) and are maintained upstream,
+// so they are excluded from linting.
+//
+// Philosophy: keep the *structural* rules that catch real formatting
+// regressions (broken lists, missing code-fence languages, bad heading
+// nesting, stray whitespace) and switch off the *prose-style* rules that
+// fight this repo's deliberately long, densely-linked ADR writing.
+{
+  "globs": [
+    "README.md",
+    "CLAUDE.md",
+    "docs/**/*.md",
+    ".github/**/*.md"
+  ],
+  "ignores": [
+    ".claude/**",
+    "node_modules/**"
+  ],
+  "config": {
+    "default": true,
+
+    // Prose runs long and link-dense on purpose; wrapping it would hurt
+    // readability of the ADRs. Line length is not a regression.
+    "MD013": false,
+
+    // ADRs use bold run-in labels ("**Positive**", "**Negative**") as
+    // intentional sub-section markers, not as headings.
+    "MD036": false,
+
+    // The ADR index table uses a compact pipe style; column-padding style
+    // is cosmetic and not worth enforcing.
+    "MD060": false,
+
+    // Allow inline HTML if a doc ever needs it (e.g. <br>, <details>).
+    "MD033": false,
+
+    // Not every file has to open with a top-level heading.
+    "MD041": false
+  }
+}

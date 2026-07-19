@@ -7,6 +7,7 @@ Publish webapps instantly with ease. Intended for use on a single VPS.
 3. `curl https://project.ericbs.dev` - 200 OK
 
 Exhibit comes with a dashboard to:
+
 - view health & terminal logs
 - proxy requests & attach auth from outside the webapp sandboxes
 - monitor traffic & audit every outbound request
@@ -15,6 +16,7 @@ Exhibit comes with a dashboard to:
 ## What's different compared to vercel, coolify etc.?
 
 It's:
+
 - open source & forever free
 - slimmed down to hobbyist use needs
 - extremely easy to setup and self host

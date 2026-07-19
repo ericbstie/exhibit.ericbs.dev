@@ -1,0 +1,45 @@
+# mise toolchain + task runner for the documentation CI.
+# https://mise.jdx.dev
+#
+# `mise run check` runs every offline regression check; CI runs the same
+# tasks (see .github/workflows/ci.yml). Tools are declared per-task so each
+# check only pulls in what it actually needs — the pure-Python checks stay
+# dependency-free, and only the external-link check installs lychee.
+#
+# python is intentionally not managed here: the check scripts are
+# stdlib-only and version-agnostic, so the system python3 is used.
+
+[tasks.lint]
+description = "Markdown lint (structural rules only)"
+# markdownlint-cli2 is fetched and run with aube (a Node package manager),
+# not npm. `aube dlx` is aube's npx-equivalent — it runs a package in a
+# throwaway environment. node is needed to execute the (JS) linter.
+tools = { node = "22", aube = "latest" }
+run = "aube dlx markdownlint-cli2@0.23.1"
+
+[tasks.links]
+description = "Internal links, anchors, and path references"
+run = "python3 .github/scripts/check_links.py"
+
+[tasks.adr]
+description = "ADR numbering, headings, and index sync"
+run = "python3 .github/scripts/check_adrs.py"
+
+[tasks.spell]
+description = "Spell check (codespell)"
+tools = { "pipx:codespell" = "latest" }
+run = "codespell README.md CLAUDE.md docs .github"
+
+[tasks.test]
+description = "Unit tests for the check scripts (pytest)"
+tools = { "pipx:pytest" = "latest" }
+run = "pytest .github/scripts"
+
+[tasks.external-links]
+description = "External link health (lychee)"
+tools = { "aqua:lycheeverse/lychee" = "latest" }
+run = "lychee --config lychee.toml --no-progress --exclude-path .claude --exclude-path node_modules './**/*.md'"
+
+[tasks.check]
+description = "Run every offline regression check"
+depends = ["lint", "links", "adr", "spell", "test"]
