@@ -46,8 +46,15 @@ export function splitWords(input: string): string[] {
   return words;
 }
 
+/**
+ * Words made only of these characters survive shell-like unquoting verbatim —
+ * one allow-set shared by every quoter (POSIX shell here, systemd ExecStart=
+ * in the unit renderer).
+ */
+export const SHELL_SAFE_WORD = /^[A-Za-z0-9_@%+=:,./-]+$/;
+
 /** Quote a word for a POSIX shell (the remote end of the ssh exec). */
 export function quoteWord(word: string): string {
-  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(word)) return word;
+  if (SHELL_SAFE_WORD.test(word)) return word;
   return `'${word.replaceAll("'", `'\\''`)}'`;
 }

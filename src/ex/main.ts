@@ -6,6 +6,7 @@
  */
 import pkg from "../../package.json";
 import type { DeployEvent } from "../server/events.ts";
+import { parseDeployArgs } from "../shared/args.ts";
 import { quoteWord } from "../shared/words.ts";
 import { readConfig, writeConfig } from "./config.ts";
 
@@ -34,6 +35,10 @@ function remoteCommand(root: string | undefined, words: string[]): string {
   return prefix + words.map(quoteWord).join(" ");
 }
 
+/**
+ * Deliberate R1 scope-down (spec #20): ADR 0006's version handshake with the
+ * server is deferred — login records where the server is, nothing more.
+ */
 function cmdLogin(args: string[]): number {
   const target = args.find((a) => !a.startsWith("-"));
   if (!target) {
@@ -72,24 +77,12 @@ function renderEvent(line: string): void {
 }
 
 async function cmdDeploy(args: string[]): Promise<number> {
-  let domain: string | undefined;
-  let runCmd: string[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!;
-    if (arg === "--domain") {
-      domain = args[++i];
-    } else if (arg === "--") {
-      runCmd = args.slice(i + 1);
-      break;
-    } else {
-      console.error(`unknown argument: ${arg}`);
-      return 2;
-    }
-  }
-  if (!domain) {
-    console.error("deploy requires --domain <domain>");
+  const parsed = parseDeployArgs(args);
+  if ("error" in parsed) {
+    console.error(parsed.error);
     return 2;
   }
+  const { domain, runCmd } = parsed;
   const { target, root } = requireTarget();
 
   const head = Bun.spawnSync(["git", "rev-parse", "--verify", "HEAD"], { stdout: "ignore" });
@@ -104,7 +97,7 @@ async function cmdDeploy(args: string[]): Promise<number> {
   }
 
   const words = ["exhibit-server", "deploy", "--domain", domain];
-  if (runCmd.length > 0) words.push("--", ...runCmd);
+  if (runCmd) words.push("--", ...runCmd);
 
   const archive = Bun.spawn(["git", "archive", "HEAD"], { stdout: "pipe", stderr: "inherit" });
   const ssh = Bun.spawn(["ssh", target, remoteCommand(root, words)], {

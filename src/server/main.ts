@@ -7,13 +7,14 @@
  */
 import { basename } from "node:path";
 import pkg from "../../package.json";
+import { parseDeployArgs } from "../shared/args.ts";
 import { splitWords } from "../shared/words.ts";
 import { deployOp } from "./deploy.ts";
 import { stdoutEmitter } from "./events.ts";
 import { resolveTarget, targetString } from "./net.ts";
 import { serverEnv } from "./paths.ts";
 import { currentRelease, listApps, listReleases } from "./releases.ts";
-import { unitName } from "./systemd.ts";
+import { unitPattern } from "./systemd.ts";
 
 const USAGE = `exhibit-server ${pkg.version}
 
@@ -41,30 +42,14 @@ function argvWords(): string[] {
 }
 
 async function cmdDeploy(args: string[]): Promise<number> {
-  let domain: string | undefined;
-  let runCmd: string[] = ["mise", "run", "production"];
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!;
-    if (arg === "--domain") {
-      domain = args[++i];
-    } else if (arg === "--") {
-      runCmd = args.slice(i + 1);
-      break;
-    } else {
-      console.error(`unknown argument: ${arg}`);
-      return 2;
-    }
-  }
-  if (!domain) {
-    console.error("deploy requires --domain <domain>");
+  const parsed = parseDeployArgs(args);
+  if ("error" in parsed) {
+    console.error(parsed.error);
     return 2;
   }
-  if (runCmd.length === 0) {
-    console.error("empty run command after --");
-    return 2;
-  }
+  const runCmd = parsed.runCmd ?? ["mise", "run", "production"];
   try {
-    return await deployOp(domain, runCmd, serverEnv(), stdoutEmitter);
+    return await deployOp(parsed.domain, runCmd, serverEnv(), stdoutEmitter);
   } catch (err) {
     stdoutEmitter({ event: "error", message: err instanceof Error ? err.message : String(err) });
     return 1;
@@ -90,7 +75,8 @@ async function cmdLogs(args: string[]): Promise<number> {
     console.error("logs requires <domain>");
     return 2;
   }
-  const jargs = ["-u", unitName(domain), "--no-pager", "-o", "cat"];
+  // Every release is its own unit instance (#28); the glob tails them all.
+  const jargs = ["-u", unitPattern(domain), "--no-pager", "-o", "cat"];
   const n = args.indexOf("-n");
   jargs.push("-n", n !== -1 && args[n + 1] ? args[n + 1]! : "100");
   if (args.includes("--follow") || args.includes("-f")) jargs.push("-f");
