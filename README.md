@@ -15,39 +15,39 @@ Exhibit comes with a dashboard to:
 
 ## Setup
 
-Exhibit is a [Bun](https://bun.sh) project (Bun >= 1.2) — this is developing
-Exhibit itself, not deploying an app with it (see the quickstart above for
-that).
+Exhibit has two sides: `exhibit-server` running on the VPS, and the `ex` CLI
+you run on your laptop to deploy to it. There's no packaged installer yet —
+`ex init-server`, a one-command provisioner, is still on the roadmap (see
+[ADR 0007](docs/adr/0007-delivery-bootstrap.md)) — so today both run from
+source with [Bun](https://bun.sh) (>= 1.2).
+
+**On the VPS:** have systemd, [mise](https://mise.jdx.dev) (apps run `mise
+run production`), and [Caddy](https://caddyserver.com) with its admin API
+reachable at `127.0.0.1:2019` already set up. Then make `exhibit-server`
+the forced command for the SSH key you'll deploy with, e.g. in
+`authorized_keys`:
+
+```sh
+command="bun /path/to/exhibit.ericbs.dev/src/server/main.ts",restrict ssh-ed25519 AAAA...
+```
+
+**On your laptop:**
 
 ```sh
 git clone https://github.com/ericbstie/exhibit.ericbs.dev.git
 cd exhibit.ericbs.dev
 bun install
+bun src/ex/main.ts login <ssh-target>   # records the server in ~/.config/exhibit/config.toml
 ```
 
-Runnable commands:
-
-- `bun run typecheck` — `tsc --noEmit` over `src/` and `tests/`
-- `bun test` — unit tests
-- `bun src/ex/main.ts` — run the `ex` laptop CLI from source
-- `bun src/server/main.ts` — run `exhibit-server` from source
-
-The e2e suite (`tests/e2e/`) needs a Linux host with systemd, Caddy (admin API
-on `127.0.0.1:2019`), mise, and a loopback sshd forcing `exhibit-server` as
-the SSH command — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-for the full setup. With that in place:
+Then, from inside a webapp project:
 
 ```sh
-EXHIBIT_E2E=1 EXHIBIT_SSH_E2E=1 bun test
+bun /path/to/exhibit.ericbs.dev/src/ex/main.ts deploy --domain project.ericbs.dev -- mise run production
 ```
 
-The docs (`README.md`, `CLAUDE.md`, `docs/`, `.github/`) have their own
-offline regression checks, run through [mise](https://mise.jdx.dev) — see
-[`docs/ci.md`](docs/ci.md):
-
-```sh
-mise run check   # lint + links + adr + spell + test
-```
+Other commands: `ex ls` lists deployed apps and their releases, `ex logs
+<domain> [--follow] [-n <lines>]` tails a running app's logs.
 
 ## What's different compared to vercel, coolify etc.?
 
