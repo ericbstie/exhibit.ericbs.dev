@@ -39,6 +39,11 @@ async function bindProbe(port: number): Promise<boolean> {
  * Lowest free port ≥ base: a single-writer scan of every app's
  * `.exhibit/net.toml` — no lock, no registry (ADR 0005). `probe` additionally
  * skips ports some unrelated process already occupies.
+ *
+ * Concurrent deploys can race this scan: an in-flight release's port is
+ * unrecorded until cutover and unbound until its app boots. Accepted for R1
+ * (single operator, deploys unserialized — ADR 0005 amendment); the exhibitd
+ * split (ADR 0002) is where serialization lands.
  */
 export async function allocatePort(
   appsDir: string,
@@ -56,14 +61,14 @@ export async function allocatePort(
   throw new Error(`no free port at or above ${base}`);
 }
 
-/** The app's recorded port, allocating and persisting one on first deploy. */
-export async function ensurePort(appsDir: string, domain: string, base: number): Promise<number> {
-  const recorded = readRecordedPort(appsDir, domain);
-  if (recorded !== null) return recorded;
-  const port = await allocatePort(appsDir, base);
+/**
+ * Record a port as the app's live target. Written only at cutover: until a
+ * release passes VERIFY, its port stays unrecorded, so the route and `ls`
+ * keep pointing at the release that is actually serving (#28).
+ */
+export function recordPort(appsDir: string, domain: string, port: number): void {
   mkdirSync(join(appsDir, domain, ".exhibit"), { recursive: true });
   writeFileSync(netTomlPath(appsDir, domain), `port = ${port}\n`);
-  return port;
 }
 
 /** `resolveTarget(domain) → host:port`, backed by `.exhibit/net.toml`. */

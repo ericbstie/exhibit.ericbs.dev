@@ -116,12 +116,33 @@ export async function resetCaddy(): Promise<void> {
   if (!res.ok) throw new Error(`caddy reset failed: ${res.status} ${await res.text()}`);
 }
 
-/** Best-effort teardown of an app's unit + drop-in between suites. */
+/** Every existing unit of a domain (one instance per release since #28). */
+export function appUnits(domain: string): string[] {
+  const units = new Set<string>();
+  for (const list of [["list-units", "--all"], ["list-unit-files"]]) {
+    const found = Bun.spawnSync([
+      "systemctl",
+      ...list,
+      "--plain",
+      "--no-legend",
+      "--no-pager",
+      `exhibit-app@${domain}_*.service`,
+    ]);
+    for (const line of found.stdout.toString().split("\n")) {
+      const unit = line.trim().split(/\s+/)[0];
+      if (unit?.startsWith("exhibit-app@")) units.add(unit);
+    }
+  }
+  return [...units];
+}
+
+/** Best-effort teardown of an app's units + drop-ins between suites. */
 export async function cleanupApp(domain: string): Promise<void> {
-  const unit = `exhibit-app@${domain}.service`;
-  Bun.spawnSync(["systemctl", "disable", "--now", unit]);
-  Bun.spawnSync(["systemctl", "reset-failed", unit]);
-  Bun.spawnSync(["rm", "-rf", `/etc/systemd/system/${unit}.d`]);
+  for (const unit of appUnits(domain)) {
+    Bun.spawnSync(["systemctl", "disable", "--now", unit]);
+    Bun.spawnSync(["systemctl", "reset-failed", unit]);
+  }
+  Bun.spawnSync(["bash", "-c", `rm -rf '/etc/systemd/system/exhibit-app@${domain}'_*.service.d`]);
   Bun.spawnSync(["systemctl", "daemon-reload"]);
 }
 

@@ -3,25 +3,35 @@ import { upsertRoute } from "./caddy.ts";
 import type { Emit, StepName } from "./events.ts";
 import { run } from "./exec.ts";
 import { httpGet } from "./http.ts";
-import { ensurePort, resolveTarget, targetString } from "./net.ts";
+import type { Target } from "./net.ts";
+import { allocatePort, recordPort, targetString } from "./net.ts";
 import type { ServerEnv } from "./paths.ts";
 import { validateDomain } from "./paths.ts";
-import { currentRelease, newReleaseDir, swapCurrent } from "./releases.ts";
+import { currentRelease, ensureStateDir, newReleaseDir, swapCurrent } from "./releases.ts";
 import {
   installTemplate,
+  instanceId,
   journalTail,
-  readDropIn,
+  listInstances,
   renderDropIn,
-  startApp,
-  stopApp,
+  retireInstance,
+  startInstance,
   unitState,
   writeDropIn,
 } from "./systemd.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * How long the outgoing release keeps running after the route moved off it,
+ * so requests it was already serving can finish before it stops (#28).
+ */
+const DRAIN_MS = 500;
+
+type PrepareCheck = "has-task" | "no-task" | "no-mise";
+
 /** Does the release define a mise `prepare` task? */
-async function hasPrepareTask(releaseDir: string): Promise<boolean | "no-mise"> {
+async function checkPrepareTask(releaseDir: string): Promise<PrepareCheck> {
   try {
     // Non-interactive environments can't answer mise's trust prompt.
     await run(["mise", "trust", "--yes"], { cwd: releaseDir });
@@ -29,9 +39,9 @@ async function hasPrepareTask(releaseDir: string): Promise<boolean | "no-mise"> 
       cwd: releaseDir,
       env: { MISE_TRUSTED_CONFIG_PATHS: releaseDir },
     });
-    if (result.code !== 0) return false;
+    if (result.code !== 0) return "no-task";
     const tasks = JSON.parse(result.stdout) as Array<{ name: string }>;
-    return tasks.some((t) => t.name === "prepare");
+    return tasks.some((t) => t.name === "prepare") ? "has-task" : "no-task";
   } catch {
     return "no-mise";
   }
@@ -42,14 +52,19 @@ async function hasPrepareTask(releaseDir: string): Promise<boolean | "no-mise"> 
  * errors must not replace a working release) on its port, or the unit dies,
  * or the timeout runs out.
  */
-async function verifyAnswersHttp(domain: string, port: number, timeoutMs: number): Promise<boolean> {
+async function verifyAnswersHttp(
+  domain: string,
+  instance: string,
+  port: number,
+  timeoutMs: number,
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
       const res = await httpGet("127.0.0.1", port, domain, 1000);
       if (res.status < 500) return true;
     } catch {
-      if ((await unitState(domain)) === "failed") return false;
+      if ((await unitState(instance)) === "failed") return false;
     }
     await sleep(250);
   }
@@ -58,8 +73,14 @@ async function verifyAnswersHttp(domain: string, port: number, timeoutMs: number
 
 /**
  * The full deploy operation (spec #20): archive on fd 0 → unpack → prepare →
- * allocate address → unit → verify → cutover → route → confirm live, emitting
- * NDJSON step-events throughout. Returns the process exit code.
+ * allocate address → unit → verify → cutover → route → confirm live →
+ * decommission, emitting NDJSON step-events throughout. Returns the process
+ * exit code.
+ *
+ * The cutover is blue-green (#28): every release is its own systemd instance
+ * on its own port, started and VERIFYed while the previous release keeps
+ * serving; traffic moves atomically at the route swap, and only then does the
+ * outgoing instance stop. A failing deploy never touches what is live.
  */
 export async function deployOp(
   domain: string,
@@ -90,8 +111,8 @@ export async function deployOp(
 
   // prepare: build in the release dir before anything goes live.
   start("prepare");
-  const prepare = await hasPrepareTask(releaseDir);
-  if (prepare === true) {
+  const prepareTask = await checkPrepareTask(releaseDir);
+  if (prepareTask === "has-task") {
     const result = await run(["mise", "run", "prepare"], {
       cwd: releaseDir,
       env: { MISE_TRUSTED_CONFIG_PATHS: releaseDir },
@@ -108,63 +129,64 @@ export async function deployOp(
       event: "step",
       step: "prepare",
       status: "skip",
-      detail: prepare === "no-mise" ? "mise not found" : "no prepare task",
+      detail: prepareTask === "no-mise" ? "mise not found" : "no prepare task",
     });
   }
 
-  // allocate: the address seam — recorded once, reused on redeploy.
+  // allocate: a fresh port for this release. The live release's port is
+  // recorded in net.toml (skipped by the scan) and its bind is probed, so the
+  // two coexist; the new port becomes the recorded target only at cutover.
   start("allocate");
-  const port = await ensurePort(env.appsDir, domain, env.portBase);
-  const target = resolveTarget(env.appsDir, domain)!;
+  const port = await allocatePort(env.appsDir, env.portBase);
+  const target: Target = { host: "127.0.0.1", port };
   ok("allocate", targetString(target));
 
-  // unit: point the app's instance at the new release and (re)start it.
-  // The previous drop-in is the rollback handle if VERIFY fails.
+  // unit: start this release's own instance beside the live one, which keeps
+  // serving untouched — it needs no rollback handle beyond staying up.
   start("unit");
-  const previousDropIn = readDropIn(env.unitDir, domain);
+  const instance = instanceId(domain, release);
   const previousRelease = currentRelease(env.appsDir, domain);
   installTemplate(env.unitDir);
-  writeDropIn(env.unitDir, domain, renderDropIn({ releaseDir, port, runCmd }));
+  writeDropIn(
+    env.unitDir,
+    instance,
+    renderDropIn({ releaseDir, port, stateDir: ensureStateDir(env.appsDir, domain), runCmd }),
+  );
 
-  const rollback = async (step: StepName, message: string): Promise<number> => {
-    process.stderr.write(await journalTail(domain, 60));
-    if (previousDropIn !== null) {
-      writeDropIn(env.unitDir, domain, previousDropIn);
-      try {
-        await startApp(domain);
-      } catch (err) {
-        process.stderr.write(`rollback restart failed: ${err}\n`);
-      }
-      message += ` — previous release ${previousRelease ?? "(unknown)"} restored`;
-    } else {
-      // First deploy: fail cleanly with nothing half-live.
-      await stopApp(env.unitDir, domain);
-      message += " — nothing went live";
-    }
+  const abandon = async (step: StepName, message: string): Promise<number> => {
+    process.stderr.write(await journalTail(instance, 60));
+    await retireInstance(env.unitDir, instance);
     discardRelease();
+    message += previousRelease
+      ? ` — previous release ${previousRelease} still serving`
+      : " — nothing went live";
     return fail(step, message);
   };
 
   try {
-    await startApp(domain);
+    await startInstance(instance);
   } catch (err) {
-    return rollback("unit", `failed to start unit: ${err instanceof Error ? err.message : err}`);
+    return abandon("unit", `failed to start unit: ${err instanceof Error ? err.message : err}`);
   }
   ok("unit");
 
   // verify: the app must answer HTTP before it can become current.
   start("verify");
-  if (!(await verifyAnswersHttp(domain, port, env.verifyTimeoutMs))) {
-    return rollback("verify", `app did not answer HTTP on port ${port}`);
+  if (!(await verifyAnswersHttp(domain, instance, port, env.verifyTimeoutMs))) {
+    return abandon("verify", `app did not answer HTTP on port ${port}`);
   }
   ok("verify");
 
-  // cutover: only a verified release becomes current.
+  // cutover: only a verified release becomes current and the recorded target.
   start("cutover");
   swapCurrent(env.appsDir, domain, release);
+  recordPort(env.appsDir, domain, port);
   ok("cutover", release);
 
-  // route: Host → target through the Caddy admin API (zero-downtime).
+  // route: Host → target through the Caddy admin API (zero-downtime). A
+  // failure past this point deliberately skips decommission: the stale route
+  // still points at the previous instance, so stopping it would take the
+  // site down — the next successful deploy's sweep retires it instead.
   start("route");
   try {
     await upsertRoute(env.caddyAdmin, env.ingressListen, domain, target);
@@ -182,6 +204,18 @@ export async function deployOp(
     return fail("live", `ingress check failed: ${err instanceof Error ? err.message : err}`);
   }
   ok("live");
+
+  // decommission: traffic has moved — retire every other instance of the
+  // domain (the outgoing release, plus any stray a crashed deploy left).
+  const retirees = (await listInstances(domain)).filter((i) => i !== instance);
+  if (retirees.length > 0) {
+    start("decommission");
+    await sleep(DRAIN_MS);
+    for (const retiree of retirees) {
+      await retireInstance(env.unitDir, retiree);
+    }
+    ok("decommission", previousRelease ?? undefined);
+  }
 
   emit({ event: "deployed", domain, release, target: targetString(target) });
   return 0;

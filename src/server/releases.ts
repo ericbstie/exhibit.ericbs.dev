@@ -24,6 +24,17 @@ export function deploymentsDir(appsDir: string, domain: string): string {
   return join(appDir(appsDir, domain), "deployments");
 }
 
+/**
+ * The app's writable state dir (#29): stable across releases, outside every
+ * release dir, handed to the app as STATE_DIR. Anything written elsewhere is
+ * orphaned by the next deploy.
+ */
+export function ensureStateDir(appsDir: string, domain: string): string {
+  const dir = join(appDir(appsDir, domain), "state");
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 export function listReleases(appsDir: string, domain: string): string[] {
   const dir = deploymentsDir(appsDir, domain);
   if (!existsSync(dir)) return [];

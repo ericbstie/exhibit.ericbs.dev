@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { SHELL_SAFE_WORD } from "../shared/words.ts";
 import { mustRun, run } from "./exec.ts";
 
 /**
@@ -20,40 +21,58 @@ LogRateLimitBurst=100000
 WantedBy=multi-user.target
 `;
 
-export function unitName(domain: string): string {
-  return `exhibit-app@${domain}.service`;
+/**
+ * One systemd instance per release — `<domain>_<release>` — so a new release
+ * can run and VERIFY beside the live one and the cutover is a route swap, not
+ * a restart (#28). `_` cannot appear in a domain (see `validateDomain`), so
+ * the split is unambiguous.
+ */
+export function instanceId(domain: string, release: string): string {
+  return `${domain}_${release}`;
 }
 
-function dropInDir(unitDir: string, domain: string): string {
-  return join(unitDir, `${unitName(domain)}.d`);
+export function unitName(instance: string): string {
+  return `exhibit-app@${instance}.service`;
 }
 
-function dropInPath(unitDir: string, domain: string): string {
-  return join(dropInDir(unitDir, domain), "50-exhibit.conf");
+/** Glob matching every release-instance of a domain (systemctl/journalctl accept globs). */
+export function unitPattern(domain: string): string {
+  return `exhibit-app@${domain}_*.service`;
+}
+
+function dropInDir(unitDir: string, instance: string): string {
+  return join(unitDir, `${unitName(instance)}.d`);
+}
+
+function dropInPath(unitDir: string, instance: string): string {
+  return join(dropInDir(unitDir, instance), "50-exhibit.conf");
 }
 
 /** systemd unquoting is shell-like; quote any arg that needs it. */
 function quoteExecArg(arg: string): string {
-  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg)) return arg;
+  if (SHELL_SAFE_WORD.test(arg)) return arg;
   return `"${arg.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 /**
  * Deliberate deviation from ADR 0002's snippet (`WorkingDirectory=…/current`):
- * the drop-in points at the concrete release dir so a new release can be
- * started and VERIFYed *before* `current` swaps (spec #20 step 7), and the
- * previous drop-in doubles as the rollback handle. `current` remains the
- * derived source of truth for `ls`/rollback (ADR 0005).
+ * the drop-in points at the concrete release dir because each release is its
+ * own instance, started and VERIFYed while the previous release keeps serving
+ * (#28). `current` remains the derived source of truth for `ls`/rollback
+ * (ADR 0005). STATE_DIR realizes the writable-state contract (#29): a stable
+ * per-app dir outside every release dir, surviving redeploys.
  */
 export function renderDropIn(opts: {
   releaseDir: string;
   port: number;
+  stateDir: string;
   runCmd: string[];
 }): string {
   const exec = ["/usr/bin/env", ...opts.runCmd].map(quoteExecArg).join(" ");
   return `[Service]
 WorkingDirectory=${opts.releaseDir}
 Environment=PORT=${opts.port}
+Environment=STATE_DIR=${opts.stateDir}
 Environment=MISE_TRUSTED_CONFIG_PATHS=${opts.releaseDir}
 ExecStart=
 ExecStart=${exec}
@@ -67,18 +86,13 @@ export function installTemplate(unitDir: string): void {
   writeFileSync(path, TEMPLATE);
 }
 
-export function readDropIn(unitDir: string, domain: string): string | null {
-  const path = dropInPath(unitDir, domain);
-  return existsSync(path) ? readFileSync(path, "utf8") : null;
+export function writeDropIn(unitDir: string, instance: string, content: string): void {
+  mkdirSync(dropInDir(unitDir, instance), { recursive: true });
+  writeFileSync(dropInPath(unitDir, instance), content);
 }
 
-export function writeDropIn(unitDir: string, domain: string, content: string): void {
-  mkdirSync(dropInDir(unitDir, domain), { recursive: true });
-  writeFileSync(dropInPath(unitDir, domain), content);
-}
-
-export function removeDropIn(unitDir: string, domain: string): void {
-  rmSync(dropInDir(unitDir, domain), { recursive: true, force: true });
+export function removeDropIn(unitDir: string, instance: string): void {
+  rmSync(dropInDir(unitDir, instance), { recursive: true, force: true });
 }
 
 export async function systemctl(...args: string[]): Promise<void> {
@@ -86,30 +100,59 @@ export async function systemctl(...args: string[]): Promise<void> {
 }
 
 /** `systemctl is-active` state (e.g. "active", "activating", "failed"). */
-export async function unitState(domain: string): Promise<string> {
-  const { stdout } = await run(["systemctl", "is-active", unitName(domain)]);
+export async function unitState(instance: string): Promise<string> {
+  const { stdout } = await run(["systemctl", "is-active", unitName(instance)]);
   return stdout.trim() || "unknown";
 }
 
-/** Reload units and (re)start the app's instance, enabled for reboot. */
-export async function startApp(domain: string): Promise<void> {
+/** Reload units and start a release's instance, enabled for reboot. */
+export async function startInstance(instance: string): Promise<void> {
   await systemctl("daemon-reload");
-  await systemctl("enable", unitName(domain));
-  await systemctl("restart", unitName(domain));
+  await systemctl("enable", unitName(instance));
+  await systemctl("restart", unitName(instance));
 }
 
-export async function stopApp(unitDir: string, domain: string): Promise<void> {
-  await run(["systemctl", "disable", "--now", unitName(domain)]);
-  await run(["systemctl", "reset-failed", unitName(domain)]);
-  removeDropIn(unitDir, domain);
+/** Take a release's instance out of service entirely: stop, un-enable, drop config. */
+export async function retireInstance(unitDir: string, instance: string): Promise<void> {
+  await run(["systemctl", "disable", "--now", unitName(instance)]);
+  await run(["systemctl", "reset-failed", unitName(instance)]);
+  removeDropIn(unitDir, instance);
   await run(["systemctl", "daemon-reload"]);
 }
 
-export async function journalTail(domain: string, lines: number): Promise<string> {
+/**
+ * Every existing instance of a domain — running or merely enabled — including
+ * the bare `<domain>` instance the pre-#28 single-instance layout used. Feeds
+ * the decommission sweep, so a crashed deploy's stray can't linger.
+ */
+export async function listInstances(domain: string): Promise<string[]> {
+  const patterns = [unitPattern(domain), unitName(domain)];
+  const instances = new Set<string>();
+  for (const list of [["list-units", "--all"], ["list-unit-files"]]) {
+    const { stdout } = await run([
+      "systemctl",
+      ...list,
+      "--plain",
+      "--no-legend",
+      "--no-pager",
+      ...patterns,
+    ]);
+    for (const line of stdout.split("\n")) {
+      const unit = line.trim().split(/\s+/)[0];
+      if (unit?.startsWith("exhibit-app@") && unit.endsWith(".service")) {
+        instances.add(unit.slice("exhibit-app@".length, -".service".length));
+      }
+    }
+  }
+  return [...instances];
+}
+
+/** Tail one instance's log — precise, so a failure tail can't interleave the live release's. */
+export async function journalTail(instance: string, lines: number): Promise<string> {
   const { stdout } = await run([
     "journalctl",
     "-u",
-    unitName(domain),
+    unitName(instance),
     "-n",
     String(lines),
     "--no-pager",

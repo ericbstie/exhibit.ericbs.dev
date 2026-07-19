@@ -2,6 +2,10 @@
  * Host routing through the Caddy admin API (ADR 0003): exhibit owns one HTTP
  * server (`apps.http.servers.exhibit`) and one route per domain, applied via
  * `localhost:2019` — atomic, zero-downtime.
+ *
+ * Deliberate R1 scope-down (spec #20): ADR 0003 makes Caddy the single TLS
+ * terminator with eager per-domain HTTP-01 certs, but TLS is deferred to its
+ * own release — this configures plaintext HTTP Host routing only.
  */
 import type { Target } from "./net.ts";
 import { targetString } from "./net.ts";
@@ -11,9 +15,10 @@ function routeId(domain: string): string {
 }
 
 /**
- * The reverse-proxy retry buffer makes the stop-then-start release cutover
- * (ADR 0005) invisible to visitors: requests arriving while the app restarts
- * are held and retried instead of failing.
+ * The cutover itself never routes at a dead upstream — a release only becomes
+ * the route target after VERIFY, while the outgoing release keeps serving
+ * (#28). The retry buffer is defense in depth for the remaining gap: an app
+ * that crashes and is being restarted by systemd.
  */
 function routeFor(domain: string, target: Target): object {
   return {

@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { httpGet } from "../../src/server/http.ts";
 import {
   appArchive,
+  appUnits,
   cleanupApp,
   E2E,
   freshServerEnv,
@@ -15,8 +14,9 @@ import {
 } from "./harness.ts";
 
 // T2 (#23): a deployed app runs under systemd on an allocated local port,
-// persisted in .exhibit/net.toml and reused on redeploy; two apps get
-// distinct ports.
+// reachable through the resolved target; two apps get distinct ports.
+// Assertions stay on observable behavior — the resolved target reported by
+// `ls`, HTTP responses, unit state — never on internal file layout (#30).
 describe.skipIf(!E2E)("run under systemd on an allocated port", () => {
   const env = freshServerEnv("t2", 4200);
   const domainA = "t2-a.test";
@@ -41,31 +41,34 @@ describe.skipIf(!E2E)("run under systemd on an allocated port", () => {
     expect(direct.status).toBe(200);
     expect(direct.raw).toContain("t2-a v1");
 
-    const unit = `exhibit-app@${domainA}.service`;
-    expect(Bun.spawnSync(["systemctl", "is-active", unit]).stdout.toString().trim()).toBe(
+    // Exactly one instance serves the domain, active and enabled for reboot.
+    const units = appUnits(domainA);
+    expect(units.length).toBe(1);
+    expect(Bun.spawnSync(["systemctl", "is-active", units[0]!]).stdout.toString().trim()).toBe(
       "active",
     );
-    expect(Bun.spawnSync(["systemctl", "is-enabled", unit]).stdout.toString().trim()).toBe(
+    expect(Bun.spawnSync(["systemctl", "is-enabled", units[0]!]).stdout.toString().trim()).toBe(
       "enabled",
     );
   });
 
-  test("the port is persisted and reused on redeploy of the same domain", async () => {
-    const before = portFromLs((await runServer(["ls"], { env })).stdout, domainA);
+  test("after a redeploy the resolved target serves the new release", async () => {
     const redeploy = await runServer(["deploy", "--domain", domainA, ...RUN_PYTHON], {
       env,
       stdin: appArchive(pythonApp("t2-a v2")),
     });
     expect(redeploy.code).toBe(0);
-    const after = portFromLs((await runServer(["ls"], { env })).stdout, domainA);
-    expect(after).toBe(before);
 
-    // The recorded fact lives in .exhibit/net.toml (ADR 0005).
-    const netToml = readFileSync(
-      join(env.EXHIBIT_ROOT!, "apps", domainA, ".exhibit", "net.toml"),
-      "utf8",
-    );
-    expect(netToml).toContain(`port = ${after}`);
+    // The target `ls` reports is where the app actually answers — the address
+    // seam holds regardless of which port this release landed on (#28 gives
+    // every release its own port, so we assert reachability, not stability).
+    const port = portFromLs((await runServer(["ls"], { env })).stdout, domainA);
+    const direct = await httpGet("127.0.0.1", port, domainA);
+    expect(direct.status).toBe(200);
+    expect(direct.raw).toContain("t2-a v2");
+
+    // The outgoing release's instance was decommissioned — one unit remains.
+    expect(appUnits(domainA).length).toBe(1);
   });
 
   test("two apps get distinct ports with no collision", async () => {

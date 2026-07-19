@@ -138,3 +138,18 @@ Command-verified findings that the unit template and exhibitd must honor:
 - **Ownership floor.** `DynamicUser=` + `StateDirectory=` uses idmapped mounts on
   systemd ≥257 (Debian 13); older systemd falls back to recursive chown — correct,
   slower on large state.
+
+## Amendment (2026-07-19 — blue-green cutover #28)
+
+The instance name is no longer the bare domain: since
+[#28](https://github.com/ericbstie/exhibit.ericbs.dev/issues/28)
+(see [ADR 0005's cutover amendment](0005-releases-state-logs.md)) every
+release runs as its own instance, `exhibit-app@<domain>_<release>`, so a new
+release can be started and verified while the previous release keeps serving.
+Consequence for this ADR's template: `%i` now identifies a *release*, not an
+*app*, so every `%i`-derived per-app resource above — `ns-%i`, `veth-%i`,
+`StateDirectory=exhibit/%i`, the netns `resolv.conf` bind — must instead key
+on the domain (rendered into the per-instance drop-in by `exhibitd`, which
+already renders per-app facts there). Writable state must land in one stable
+per-domain location shared by all of a domain's release-instances; where it
+lives is ADR 0005's call.

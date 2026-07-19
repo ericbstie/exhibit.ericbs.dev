@@ -10,7 +10,8 @@ export type StepName =
   | "verify"
   | "cutover"
   | "route"
-  | "live";
+  | "live"
+  | "decommission";
 
 export type DeployEvent =
   | { event: "step"; step: StepName; status: "start" }
