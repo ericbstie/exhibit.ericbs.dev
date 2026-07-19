@@ -10,15 +10,21 @@ Every check runs on pushes to `main`, on pull requests, weekly (to catch
 external link rot), and on demand (`workflow_dispatch`). Each is a separate
 job so a red X points straight at what broke.
 
+Every tool is installed and run through [mise](https://mise.jdx.dev): the
+tools and check commands live in [`mise.toml`](../mise.toml) as tasks, so CI
+and local runs use the exact same definitions. Tools are declared per-task,
+so the pure-Python checks pull in nothing and only the external-link check
+installs `lychee`.
+
 ## The checks
 
-| Job | What it enforces | How it runs |
-|-----|------------------|-------------|
-| **Markdown lint** | Structural Markdown rules — list spacing, fenced-code languages, heading nesting, stray whitespace. Prose-style rules (line length, emphasis-as-heading) are off on purpose. | `markdownlint-cli2` via `.markdownlint-cli2.jsonc` |
-| **Internal links & references** | Relative `[text](path)` links resolve, `#anchor`s point at real headings, and inline-code paths under `docs/`, `.github/`, `.claude/` exist. | [`check_links.py`](../.github/scripts/check_links.py) |
-| **ADR consistency** | ADR files are named `NNNN-slug.md`, numbered uniquely and contiguously from 0001, each has a heading, and [`docs/adr/README.md`](adr/README.md) lists every one exactly once. | [`check_adrs.py`](../.github/scripts/check_adrs.py) |
-| **Spelling** | Common typos in prose. Domain jargon is safe; codespell only flags known misspellings. | `codespell` via `.codespellrc` |
-| **External links** | `http(s)` links (GitHub issues, ADRs, referenced tools) still resolve. | `lychee` via `lychee.toml` |
+| Job | What it enforces | Task |
+|-----|------------------|------|
+| **Markdown lint** | Structural Markdown rules — list spacing, fenced-code languages, heading nesting, stray whitespace. Prose-style rules (line length, emphasis-as-heading) are off on purpose. | `mise run lint` — `markdownlint-cli2` via `.markdownlint-cli2.jsonc` |
+| **Internal links & references** | Relative `[text](path)` links resolve, `#anchor`s point at real headings, and inline-code paths under `docs/`, `.github/`, `.claude/` exist. | `mise run links` — [`check_links.py`](../.github/scripts/check_links.py) |
+| **ADR consistency** | ADR files are named `NNNN-slug.md`, numbered uniquely and contiguously from 0001, each has a heading, and [`docs/adr/README.md`](adr/README.md) lists every one exactly once. | `mise run adr` — [`check_adrs.py`](../.github/scripts/check_adrs.py) |
+| **Spelling** | Common typos in prose. Domain jargon is safe; codespell only flags known misspellings. | `mise run spell` — `codespell` via `.codespellrc` |
+| **External links** | `http(s)` links (GitHub issues, ADRs, referenced tools) still resolve. | `mise run external-links` — `lychee` via `lychee.toml` |
 
 Scope is this project's own docs (`README.md`, `CLAUDE.md`, `docs/`,
 `.github/`). The vendored engineering skills under `.claude/skills/` are
@@ -28,16 +34,19 @@ inside them.
 
 ## Running locally
 
+Install [mise](https://mise.jdx.dev), then:
+
 ```sh
-make check      # everything below
-make lint       # markdownlint-cli2
-make links      # internal link & reference check
-make adr        # ADR numbering + index sync
-make spell      # codespell
+mise run check            # every offline check (lint + links + adr + spell)
+mise run lint             # markdownlint-cli2
+mise run links            # internal link & reference check
+mise run adr              # ADR numbering + index sync
+mise run spell            # codespell
+mise run external-links   # lychee (needs network)
 ```
 
-`make lint` needs Node (for `npx`); `make spell` needs `codespell`
-(`pip install codespell`); the rest are pure Python 3 with no dependencies.
+mise installs each task's tools on first run — no manual `npm`/`pip` setup.
+`check` deliberately omits the external-link check so it stays fully offline.
 
 ## Extending
 
